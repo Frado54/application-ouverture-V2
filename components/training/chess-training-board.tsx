@@ -64,6 +64,25 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
     const move = resolvedMoves[ply]
     if (!move) return false
 
+    // 1. FILTRE SILENCIEUX DES COUPS ILLÉGAUX (Style Lichess)
+    try {
+      // On demande au moteur d'échecs (chess.js) la liste des coups légaux possibles pour cette case
+      const movesLegaux = chessRef.current.moves({ square: from as any, verbose: true })
+      // On regarde si la case d'arrivée fait partie des coups autorisés par les règles du jeu
+      const estLegal = movesLegaux.some((m) => m.to === to)
+      
+      if (!estLegal) {
+        // Le coup viole les règles (ex: manger sa propre pièce, déplacer une tour en diagonale).
+        // On remet la pièce en place en silence : PAS de pénalité d'erreur, PAS de message rouge.
+        setSelected(null)
+        return false
+      }
+    } catch (err) {
+      setSelected(null)
+      return false
+    }
+
+    // 2. LE COUP EST LÉGAL : On vérifie maintenant s'il correspond à ton PGN
     if (move.from === from && move.to === to) {
       const result = chessRef.current.move({ from, to, promotion: move.promotion })
       if (!result) return false
@@ -80,6 +99,8 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
       return true
     }
 
+    // Le coup est tout à fait légal, mais ce n'est pas la variante apprise dans ton répertoire.
+    // LÀ SEULEMENT, on applique la vraie pénalité d'erreur.
     setErrors((e) => e + 1)
     setMessage({ type: 'error', text: 'Incorrect — essayez encore' })
     setSelected(null)
