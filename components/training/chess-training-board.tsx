@@ -104,6 +104,8 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
 
   function handlePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean {
     if (!targetSquare) return false
+    // SÉCURITÉ : Si on lâche la pièce sur sa case de départ, on annule sans compter d'erreur
+    if (sourceSquare === targetSquare) return false
     return attemptMove(sourceSquare, targetSquare)
   }
 
