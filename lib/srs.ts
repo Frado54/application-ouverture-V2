@@ -6,8 +6,6 @@ export const LEVELS: FeedbackLevel[] = ['très difficile', 'difficile', 'moyen',
 /** Delay in days before a chapter becomes due again, indexed like LEVELS. */
 export const LEVEL_INTERVALS_DAYS = [1, 2, 4, 7, 14]
 
-export const SESSION_MAX_CHAPTERS = 30
-
 export function levelIndex(level: FeedbackLevel): number {
   return LEVELS.indexOf(level)
 }
@@ -87,9 +85,7 @@ export interface PriorityBlockSummary {
 }
 
 /**
- * Builds the training session: only chapters from the highest-priority
- * block that still has due chapters are proposed, shuffled, capped at
- * SESSION_MAX_CHAPTERS. Also returns a per-block summary for the dashboard.
+ * Builds the training session without any artificial caps.
  */
 export function buildSession(
   blocks: RevisionPriorityBlock[],
@@ -122,7 +118,8 @@ export function buildSession(
     summary.push({ priority: block.priority, dueCount: dueInBlock.length, totalCount, isActive })
 
     if (isActive) {
-      session = shuffle(dueInBlock).slice(0, SESSION_MAX_CHAPTERS)
+      // MODIFICATION ICI : On prend tout le bloc mélangé d'un coup, sans le .slice() restrictif
+      session = shuffle(dueInBlock)
       activeBlockFound = true
     }
   }
