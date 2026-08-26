@@ -5,12 +5,16 @@ import type { PriorityBlockSummary } from '@/lib/srs'
 
 interface StatsViewProps {
   sessionLength: number
+  completedCount?: number // On accueille notre compteur de réussites
   summary: PriorityBlockSummary[]
 }
 
-export function StatsView({ sessionLength, summary }: StatsViewProps) {
+export function StatsView({ sessionLength, completedCount = 0, summary }: StatsViewProps) {
   const cap = Math.min(sessionLength, SESSION_MAX_CHAPTERS)
-  const completed = 0
+  
+  // CORRECTION ICI : On utilise completedCount bridé au maximum de la session pour ne pas dépasser la barre
+  const completed = Math.min(completedCount, cap)
+  
   const percent = cap === 0 ? 0 : Math.round((completed / cap) * 100)
   const activeBlock = summary.find((b) => b.isActive)
 
@@ -28,7 +32,7 @@ export function StatsView({ sessionLength, summary }: StatsViewProps) {
           {completed} <span className="text-lg font-normal text-muted-foreground">/ {cap}</span>
         </p>
         <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-secondary">
-          <div className="h-full rounded-full bg-[#E0532C]" style={{ width: `${percent}%` }} />
+          <div className="h-full rounded-full bg-[#E0532C] transition-all duration-300" style={{ width: `${percent}%` }} />
         </div>
         {activeBlock && (
           <p className="mt-3 text-xs text-muted-foreground">
