@@ -17,11 +17,6 @@ import { loadRawImportText, loadStoredRepertoire, saveFeedback, saveRawImportTex
 import type { DueChapter, FeedbackEntry, PgnChapter, RevisionPriorityBlock } from '@/lib/types'
 
 export default function Page() {
-  // `buildSession` compares chapter due-dates against `new Date()`, and the
-  // repertoire itself may come from `localStorage`. Both are client-only, so
-  // rendering them during the initial (server) render would produce a
-  // hydration mismatch. We defer everything until after mount and show a
-  // neutral placeholder for the very first render.
   const [mounted, setMounted] = useState(false)
 
   const [revisionBlocks, setRevisionBlocks] = useState<RevisionPriorityBlock[]>(mockRevisionBlocks)
@@ -32,6 +27,10 @@ export default function Page() {
   const [view, setView] = useState<'dashboard' | 'training'>('dashboard')
   const [activeTab, setActiveTab] = useState<AppTab>('aujourdhui')
   const [activeSession, setActiveSession] = useState<DueChapter[]>([])
+
+  // NOUVEAUX ÉTATS POUR LES STATS : Conserve la mémoire de l'avancement réel de la session
+  const [totalSessionLength, setTotalSessionLength] = useState(0)
+  const [completedCount, setCompletedCount] = useState(0)
 
   useEffect(() => {
     const stored = loadStoredRepertoire()
@@ -48,6 +47,8 @@ export default function Page() {
 
   function handleStart() {
     setActiveSession(session)
+    setTotalSessionLength(session.length) // Enregistre le nombre de départ (ex: 30)
+    setCompletedCount(0)                  // Remet le compteur de réussites à 0
     setView('training')
   }
 
@@ -57,12 +58,15 @@ export default function Page() {
       saveFeedback(next)
       return next
     })
+    // Dès qu'on donne un avis (Facile, Difficile), on ajoute +1 au compteur de progression
+    setCompletedCount((prev) => prev + 1)
   }
 
   function handleExit() {
     setView('dashboard')
     setActiveSession([])
-    setActiveTab('aujourdhui')
+    // CHANGEMENT ICI : Au lieu de forcer le retour à l'accueil, on ouvre directement l'onglet Stats !
+    setActiveTab('stats')
   }
 
   function handleImport(data: {
@@ -77,6 +81,9 @@ export default function Page() {
     setImportText(data.rawText)
     saveRepertoire({ revisionBlocks: data.revisionBlocks, feedback: data.feedback, pgnChapters: data.pgnChapters })
     saveRawImportText(data.rawText)
+    // Réinitialise les compteurs lors d'une nouvelle importation
+    setTotalSessionLength(0)
+    setCompletedCount(0)
   }
 
   if (!mounted) {
@@ -97,7 +104,18 @@ export default function Page() {
     <div className="min-h-svh bg-background pb-24">
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       {activeTab === 'gerer' && <ManageView revisionBlocks={revisionBlocks} />}
-      {activeTab === 'stats' && <StatsView sessionLength={session.length} summary={summary} />}
+      {/* 
+        MODIFICATION ICI : 
+        Si on n'est pas en session, on montre les données calculées par v0.
+        Si on vient de faire une session, on force l'affichage dynamique (ex: completedCount / totalSessionLength).
+      */}
+      {activeTab === 'stats' && (
+        <StatsView 
+          sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} 
+          completedCount={completedCount}
+          summary={summary} 
+        />
+      )}
       {activeTab === 'reglages' && <ImportPanel initialText={importText} onImport={handleImport} />}
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
