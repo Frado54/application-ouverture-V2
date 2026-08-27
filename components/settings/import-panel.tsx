@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { parseFeedbackFile, parsePgnRepertoire, parseRevisionFile, pgnChaptersToRecord } from '@/lib/parsers'
-import { exportLocalStorageBackup } from '@/lib/storage'
+import { exportLocalStorageBackup, loadStoredRepertoire } from '@/lib/storage'
 import type { FeedbackEntry, PgnChapter, RevisionPriorityBlock } from '@/lib/types'
 
 interface ImportPanelProps {
@@ -44,49 +44,83 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       const text = await response.text()
       setPgnText(text)
       toast.success("Fichier PGN de 400 Mo chargé avec succès dans l'application !")
+      return text
     } catch (error) {
       console.error(error)
       toast.error("Impossible de lire toutes_les_ouvertures.txt. Vérifiez qu'il est bien dans le dossier public.")
+      return null
     } finally {
       setIsLoadingPgn(false)
     }
   }
 
-  function handleSave() {
-    if (!revisionText.trim() || !feedbackText.trim() || !pgnText.trim()) {
-      toast.error('Veuillez remplir les trois zones avant de sauvegarder.');
-      return;
+  async function handleSave() {
+    if (!revisionText.trim() || !feedbackText.trim()) {
+      toast.error('Veuillez remplir au moins les zones Révision et Feedback.')
+      return
     }
 
-    toast.info("Initialisation de votre répertoire (calcul en cours)...");
+    let activePgnText = pgnText
+    setIsLoadingPgn(true)
+    toast.info("Synchronisation et calcul du répertoire en cours...")
 
-    setTimeout(() => {
-      try {
-        const revisionResult = parseRevisionFile(revisionText);
-        const feedbackResult = parseFeedbackFile(feedbackText);
-        const pgnResult = parsePgnRepertoire(pgnText);
-
-        if (revisionResult.data.length === 0) {
-          toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".');
-          return;
+    try {
+      // 1. SÉCURITÉ AUTOMATIQUE : Si le PGN en mémoire est vide (comme après un import JSON), on va le chercher tout seul
+      if (!activePgnText.trim()) {
+        const fetchedText = await handleLoadLocalPgn()
+        if (fetchedText) {
+          activePgnText = fetchedText
+        } else {
+          setIsLoadingPgn(false)
+          return
         }
-
-        const pgnChapters = pgnChaptersToRecord(pgnResult.data);
-
-        // MODIFICATION ICI : On n'envoie pas le texte brut du PGN géant dans le stockage pour éviter le crash de 5 Mo
-        onImport({
-          revisionBlocks: revisionResult.data,
-          feedback: feedbackResult.data,
-          pgnChapters,
-          rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // PGN vidé pour alléger la mémoire
-        });
-
-        toast.success('Répertoire initialisé avec succès !');
-      } catch (err) {
-        console.error(err);
-        toast.error("Le traitement a échoué lors de l'analyse du PGN.");
       }
-    }, 100);
+
+      const revisionResult = parseRevisionFile(revisionText)
+      const feedbackResult = parseFeedbackFile(feedbackText)
+      const pgnResult = parsePgnRepertoire(activePgnText)
+
+      if (revisionResult.data.length === 0) {
+        toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
+        setIsLoadingPgn(false)
+        return
+      }
+      if (pgnResult.data.length === 0) {
+        toast.error('Aucun chapitre PGN reconnu. Vérifiez l\'encodage.')
+        setIsLoadingPgn(false)
+        return
+      }
+
+      const pgnChapters = pgnChaptersToRecord(pgnResult.data)
+
+      // 2. FUSION INTELLIGENTE : On fusionne l'historique existant pour ne pas perdre tes révisions du PC ou du mobile
+      const storedRepertoire = loadStoredRepertoire()
+      let finalFeedback = feedbackResult.data
+
+      if (storedRepertoire && storedRepertoire.feedback.length > 0) {
+        const existingKeys = new Set(finalFeedback.map(f => `${f.study}__${f.chapter}__${f.date}`))
+        for (const oldEntry of storedRepertoire.feedback) {
+          const key = `${oldEntry.study}__${oldEntry.chapter}__${oldEntry.date}`
+          if (!existingKeys.has(key)) {
+            finalFeedback.push(oldEntry)
+          }
+        }
+      }
+
+      onImport({
+        revisionBlocks: revisionResult.data,
+        feedback: finalFeedback,
+        pgnChapters,
+        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // pgn vidé pour éviter le crash de 5 Mo
+      })
+
+      toast.success('Répertoire initialisé et sauvegardé avec succès !')
+    } catch (err) {
+      console.error(err)
+      toast.error("Le traitement a échoué lors de l'analyse.")
+    } final {
+      setIsLoadingPgn(false)
+    }
   }
 
   function handleExport() {
@@ -103,6 +137,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     URL.revokeObjectURL(url)
     toast.success('Répertoire exporté')
   }
+
   function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -112,26 +147,23 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       try {
         const backup = JSON.parse(event.target?.result as string)
         
-        // Vérification que le fichier contient bien nos données
         if (!backup.localStorage) {
           toast.error("Ce fichier JSON ne contient pas une sauvegarde valide.")
           return
         }
 
-        // On extrait et on injecte directement dans les états de la page
         const localData = backup.localStorage
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        toast.success("Capsule JSON décodée ! Vos 3 zones de texte ont été remplies. Cliquez maintenant sur Sauvegarder pour finaliser.")
+        toast.success("Capsule JSON décodée ! Vos zones ont été remplies. Cliquez sur Sauvegarder pour finaliser.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
     }
     reader.readAsText(file)
   }
-
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-24">
@@ -233,4 +265,3 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     </div>
   )
 }
-
