@@ -32,10 +32,10 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
-  // Fonction pour charger le fichier de 400 Mo depuis le dossier public
-  async function handleLoadLocalPgn(): Promise<string | null> {
+  // Fonction magique pour charger directement le fichier de 400 Mo depuis le dossier public
+  async function handleLoadLocalPgn() {
     setIsLoadingPgn(true)
-    toast.info("Téléchargement du fichier PGN de 400 Mo depuis le serveur...")
+    toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
     try {
       const response = await fetch('/toutes_les_ouvertures.txt')
       if (!response.ok) {
@@ -43,11 +43,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       }
       const text = await response.text()
       setPgnText(text)
-      toast.success("Fichier PGN chargé en mémoire avec succès !")
+      toast.success("Fichier PGN de 400 Mo chargé avec succès dans l'application !")
       return text
     } catch (error) {
       console.error(error)
-      toast.error("Fichier toutes_les_ouvertures.txt introuvable sur le serveur Vercel.")
+      toast.error("Impossible de lire toutes_les_ouvertures.txt. Vérifiez qu'il est bien dans le dossier public.")
       return null
     } finally {
       setIsLoadingPgn(false)
@@ -60,71 +60,67 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       return
     }
 
+    let activePgnText = pgnText
     setIsLoadingPgn(true)
-    toast.info("Synchronisation et calcul de votre répertoire...")
+    toast.info("Synchronisation et calcul du répertoire en cours...")
 
-    // On utilise un setTimeout pour laisser l'interface afficher le message de chargement
-    setTimeout(async () => {
-      let activePgnText = pgnText
-
-      try {
-        // SÉCURITÉ ABSOLUE : Si pgnText est vide, on force l'attente réelle du fetch avant de continuer
-        if (!activePgnText || !activePgnText.trim()) {
-          const fetchedText = await handleLoadLocalPgn()
-          if (fetchedText) {
-            activePgnText = fetchedText
-          } else {
-            setIsLoadingPgn(false)
-            return
-          }
-        }
-
-        const revisionResult = parseRevisionFile(revisionText)
-        const feedbackResult = parseFeedbackFile(feedbackText)
-        const pgnResult = parsePgnRepertoire(activePgnText)
-
-        if (revisionResult.data.length === 0) {
-          toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
+    try {
+      // 1. SÉCURITÉ AUTOMATIQUE : Si le PGN en mémoire est vide (comme après un import JSON), on va le chercher tout seul
+      if (!activePgnText.trim()) {
+        const fetchedText = await handleLoadLocalPgn()
+        if (fetchedText) {
+          activePgnText = fetchedText
+        } else {
           setIsLoadingPgn(false)
           return
         }
-        if (pgnResult.data.length === 0) {
-          toast.error("Aucun chapitre PGN reconnu. Relancez le bouton bleu ou vérifiez le fichier.")
-          setIsLoadingPgn(false)
-          return
-        }
-
-        const pgnChapters = pgnChaptersToRecord(pgnResult.data)
-
-        // FUSION DE L'HISTORIQUE PRESERVÉ
-        const storedRepertoire = loadStoredRepertoire()
-        let finalFeedback = feedbackResult.data
-
-        if (storedRepertoire && storedRepertoire.feedback.length > 0) {
-          const existingKeys = new Set(finalFeedback.map(f => `${f.study}__${f.chapter}__${f.date}`))
-          for (const oldEntry of storedRepertoire.feedback) {
-            const key = `${oldEntry.study}__${oldEntry.chapter}__${oldEntry.date}`
-            if (!existingKeys.has(key)) {
-              finalFeedback.push(oldEntry)
-            }
-          }
-        }
-
-        onImport({
-          revisionBlocks: revisionResult.data,
-          feedback: finalFeedback,
-          pgnChapters,
-          rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // Allègement mémoire LocalStorage
-        })
-
-        toast.success('Répertoire initialisé et sauvegardé avec succès !')
-      } catch (err) {
-        console.error(err)
-        toast.error("Le traitement a échoué lors de l'analyse globale.")
-      } finally {
-        setIsLoadingPgn(false)
       }
-    }, 100)
+
+      const revisionResult = parseRevisionFile(revisionText)
+      const feedbackResult = parseFeedbackFile(feedbackText)
+      const pgnResult = parsePgnRepertoire(activePgnText)
+
+      if (revisionResult.data.length === 0) {
+        toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
+        setIsLoadingPgn(false)
+        return
+      }
+      if (pgnResult.data.length === 0) {
+        toast.error('Aucun chapitre PGN reconnu. Vérifiez l\'encodage.')
+        setIsLoadingPgn(false)
+        return
+      }
+
+      const pgnChapters = pgnChaptersToRecord(pgnResult.data)
+
+      // 2. FUSION INTELLIGENTE : On fusionne l'historique existant pour ne pas perdre tes révisions du PC ou du mobile
+      const storedRepertoire = loadStoredRepertoire()
+      let finalFeedback = feedbackResult.data
+
+      if (storedRepertoire && storedRepertoire.feedback.length > 0) {
+        const existingKeys = new Set(finalFeedback.map(f => `${f.study}__${f.chapter}__${f.date}`))
+        for (const oldEntry of storedRepertoire.feedback) {
+          const key = `${oldEntry.study}__${oldEntry.chapter}__${oldEntry.date}`
+          if (!existingKeys.has(key)) {
+            finalFeedback.push(oldEntry)
+          }
+        }
+      }
+
+      onImport({
+        revisionBlocks: revisionResult.data,
+        feedback: finalFeedback,
+        pgnChapters,
+        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // pgn vidé pour éviter le crash de 5 Mo
+      })
+
+      toast.success('Répertoire initialisé et sauvegardé avec succès !')
+    } catch (err) {
+      console.error(err)
+      toast.error("Le traitement a échoué lors de l'analyse.")
+    } finally {
+      setIsLoadingPgn(false)
+    }
   }
 
   function handleExport() {
@@ -143,6 +139,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
+    // CORRECTION ICI : On rajoute bien [0] pour attraper le premier fichier sélectionné
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -157,12 +154,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         }
 
         const localData = backup.localStorage
-        
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
-        setPgnText('') // On force le vidage pour obliger handleSave à aller chercher le gros fichier propre
+        setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        toast.success("Sauvegarde JSON lue ! Cliquez maintenant sur le bouton orange pour synchroniser les PGN.")
+        toast.success("Capsule JSON décodée ! Vos zones ont été remplies. Cliquez sur Sauvegarder pour finaliser.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
@@ -212,7 +208,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
-            Le fichier de 400 Mo sera automatiquement importé en arrière-plan lors de la validation.
+            Cliquez sur le bouton ci-dessous pour injecter directement le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> placé dans votre dossier public.
           </FieldDescription>
           
           <Button 
@@ -229,16 +225,22 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             ) : (
               <>
                 <FileText className="size-4" />
-                {pgnText ? "✓ PGN Chargé en mémoire" : "Forcer le chargement de toutes_les_ouvertures.txt"}
+                {pgnText ? "✓ PGN Chargé (Prêt)" : "Charger toutes_les_ouvertures.txt depuis le PC"}
               </>
             )}
           </Button>
+          
+          {pgnText && (
+            <p className="text-xs text-green-500 mt-1">
+              Fichier détecté en mémoire ({Math.round(pgnText.length / 1024 / 1024)} Mo). Prêt pour l'initialisation.
+            </p>
+          )}
         </Field>
       </FieldGroup>
 
       <div className="flex flex-col gap-3">
-        <Button onClick={handleSave} disabled={isLoadingPgn} className="h-11 w-full bg-[#E0532C] text-white hover:bg-[#E0532C]/90">
-          {isLoadingPgn ? "Traitement lourd en cours..." : "Sauvegarder et Initialiser mon Répertoire"}
+        <Button onClick={handleSave} className="h-11 w-full bg-[#E0532C] text-white hover:bg-[#E0532C]/90">
+          Sauvegarder et Initialiser mon Répertoire
         </Button>
         
         <Button
