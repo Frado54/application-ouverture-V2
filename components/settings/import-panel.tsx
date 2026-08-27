@@ -32,10 +32,10 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
-  // Fonction pour charger directement le fichier de 400 Mo depuis le dossier public
-  async function handleLoadLocalPgn() {
+  // Fonction pour charger le fichier de 400 Mo depuis le dossier public
+  async function handleLoadLocalPgn(): Promise<string | null> {
     setIsLoadingPgn(true)
-    toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
+    toast.info("Téléchargement du fichier PGN de 400 Mo depuis le serveur...")
     try {
       const response = await fetch('/toutes_les_ouvertures.txt')
       if (!response.ok) {
@@ -43,11 +43,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       }
       const text = await response.text()
       setPgnText(text)
-      toast.success("Fichier PGN de 400 Mo chargé avec succès !")
+      toast.success("Fichier PGN chargé en mémoire avec succès !")
       return text
     } catch (error) {
       console.error(error)
-      toast.error("Impossible de lire toutes_les_ouvertures.txt. Vérifiez qu'il est bien dans le dossier public.")
+      toast.error("Fichier toutes_les_ouvertures.txt introuvable sur le serveur Vercel.")
       return null
     } finally {
       setIsLoadingPgn(false)
@@ -60,67 +60,71 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       return
     }
 
-    let activePgnText = pgnText
     setIsLoadingPgn(true)
-    toast.info("Synchronisation et calcul du répertoire en cours...")
+    toast.info("Synchronisation et calcul de votre répertoire...")
 
-    try {
-      // SÉCURITÉ AUTOMATIQUE : Si la mémoire PGN est vide, on va la chercher tout seul
-      if (!activePgnText.trim()) {
-        const fetchedText = await handleLoadLocalPgn()
-        if (fetchedText) {
-          activePgnText = fetchedText
-        } else {
+    // On utilise un setTimeout pour laisser l'interface afficher le message de chargement
+    setTimeout(async () => {
+      let activePgnText = pgnText
+
+      try {
+        // SÉCURITÉ ABSOLUE : Si pgnText est vide, on force l'attente réelle du fetch avant de continuer
+        if (!activePgnText || !activePgnText.trim()) {
+          const fetchedText = await handleLoadLocalPgn()
+          if (fetchedText) {
+            activePgnText = fetchedText
+          } else {
+            setIsLoadingPgn(false)
+            return
+          }
+        }
+
+        const revisionResult = parseRevisionFile(revisionText)
+        const feedbackResult = parseFeedbackFile(feedbackText)
+        const pgnResult = parsePgnRepertoire(activePgnText)
+
+        if (revisionResult.data.length === 0) {
+          toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
           setIsLoadingPgn(false)
           return
         }
-      }
+        if (pgnResult.data.length === 0) {
+          toast.error("Aucun chapitre PGN reconnu. Relancez le bouton bleu ou vérifiez le fichier.")
+          setIsLoadingPgn(false)
+          return
+        }
 
-      const revisionResult = parseRevisionFile(revisionText)
-      const feedbackResult = parseFeedbackFile(feedbackText)
-      const pgnResult = parsePgnRepertoire(activePgnText)
+        const pgnChapters = pgnChaptersToRecord(pgnResult.data)
 
-      if (revisionResult.data.length === 0) {
-        toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
-        setIsLoadingPgn(false)
-        return
-      }
-      if (pgnResult.data.length === 0) {
-        toast.error('Aucun chapitre PGN reconnu. Vérifiez l\'encodage.')
-        setIsLoadingPgn(false)
-        return
-      }
+        // FUSION DE L'HISTORIQUE PRESERVÉ
+        const storedRepertoire = loadStoredRepertoire()
+        let finalFeedback = feedbackResult.data
 
-      const pgnChapters = pgnChaptersToRecord(pgnResult.data)
-
-      // FUSION DE L'HISTORIQUE PRESERVÉ
-      const storedRepertoire = loadStoredRepertoire()
-      let finalFeedback = feedbackResult.data
-
-      if (storedRepertoire && storedRepertoire.feedback.length > 0) {
-        const existingKeys = new Set(finalFeedback.map(f => `${f.study}__${f.chapter}__${f.date}`))
-        for (const oldEntry of storedRepertoire.feedback) {
-          const key = `${oldEntry.study}__${oldEntry.chapter}__${oldEntry.date}`
-          if (!existingKeys.has(key)) {
-            finalFeedback.push(oldEntry)
+        if (storedRepertoire && storedRepertoire.feedback.length > 0) {
+          const existingKeys = new Set(finalFeedback.map(f => `${f.study}__${f.chapter}__${f.date}`))
+          for (const oldEntry of storedRepertoire.feedback) {
+            const key = `${oldEntry.study}__${oldEntry.chapter}__${oldEntry.date}`
+            if (!existingKeys.has(key)) {
+              finalFeedback.push(oldEntry)
+            }
           }
         }
+
+        onImport({
+          revisionBlocks: revisionResult.data,
+          feedback: finalFeedback,
+          pgnChapters,
+          rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // Allègement mémoire LocalStorage
+        })
+
+        toast.success('Répertoire initialisé et sauvegardé avec succès !')
+      } catch (err) {
+        console.error(err)
+        toast.error("Le traitement a échoué lors de l'analyse globale.")
+      } finally {
+        setIsLoadingPgn(false)
       }
-
-      onImport({
-        revisionBlocks: revisionResult.data,
-        feedback: finalFeedback,
-        pgnChapters,
-        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // Allègement mémoire LocalStorage
-      })
-
-      toast.success('Répertoire initialisé et sauvegardé avec succès !')
-    } catch (err) {
-      console.error(err)
-      toast.error("Le traitement a échoué lors de l'analyse.")
-    } finally {
-      setIsLoadingPgn(false)
-    }
+    }, 100)
   }
 
   function handleExport() {
@@ -154,12 +158,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
 
         const localData = backup.localStorage
         
-        // METHODE SECURISEE : On remplit uniquement les cases à l'écran
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
-        setPgnText('') // On force le vidage du PGN pour déclencher la sécurité automatique au clic sur Sauvegarder
+        setPgnText('') // On force le vidage pour obliger handleSave à aller chercher le gros fichier propre
 
-        toast.success("Sauvegarde JSON lue avec succès ! Les zones ont été pré-remplies. Cliquez maintenant sur le bouton orange pour valider.")
+        toast.success("Sauvegarde JSON lue ! Cliquez maintenant sur le bouton orange pour synchroniser les PGN.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
@@ -209,7 +212,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
-            Le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> sera automatiquement chargé depuis le serveur lors de la validation.
+            Le fichier de 400 Mo sera automatiquement importé en arrière-plan lors de la validation.
           </FieldDescription>
           
           <Button 
@@ -226,7 +229,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             ) : (
               <>
                 <FileText className="size-4" />
-                {pgnText ? "✓ PGN Chargé (Prêt)" : "Charger toutes_les_ouvertures.txt depuis le PC"}
+                {pgnText ? "✓ PGN Chargé en mémoire" : "Forcer le chargement de toutes_les_ouvertures.txt"}
               </>
             )}
           </Button>
@@ -234,8 +237,8 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       </FieldGroup>
 
       <div className="flex flex-col gap-3">
-        <Button onClick={handleSave} className="h-11 w-full bg-[#E0532C] text-white hover:bg-[#E0532C]/90">
-          Sauvegarder et Initialiser mon Répertoire
+        <Button onClick={handleSave} disabled={isLoadingPgn} className="h-11 w-full bg-[#E0532C] text-white hover:bg-[#E0532C]/90">
+          {isLoadingPgn ? "Traitement lourd en cours..." : "Sauvegarder et Initialiser mon Répertoire"}
         </Button>
         
         <Button
