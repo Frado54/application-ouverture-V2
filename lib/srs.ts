@@ -6,6 +6,8 @@ export const LEVELS: FeedbackLevel[] = ['très difficile', 'difficile', 'moyen',
 /** Delay in days before a chapter becomes due again, indexed like LEVELS. */
 export const LEVEL_INTERVALS_DAYS = [1, 2, 4, 7, 14]
 
+export const SESSION_MAX_CHAPTERS = 30
+
 export function levelIndex(level: FeedbackLevel): number {
   return LEVELS.indexOf(level)
 }
@@ -85,7 +87,9 @@ export interface PriorityBlockSummary {
 }
 
 /**
- * Builds the training session without any artificial caps.
+ * Builds the training session: only chapters from the highest-priority
+ * block that still has due chapters are proposed, shuffled, capped at
+ * SESSION_MAX_CHAPTERS. Also returns a per-block summary for the dashboard.
  */
 export function buildSession(
   blocks: RevisionPriorityBlock[],
@@ -93,8 +97,7 @@ export function buildSession(
   today: Date = new Date(),
 ): { session: DueChapter[]; summary: PriorityBlockSummary[] } {
   const summary: PriorityBlockSummary[] = []
-  let session: DueChapter[] = []
-  let activeBlockFound = false
+  let allDueSessions: DueChapter[] = []
 
   for (const block of blocks) {
     const dueInBlock: DueChapter[] = []
@@ -114,15 +117,15 @@ export function buildSession(
       }
     }
 
-    const isActive = !activeBlockFound && dueInBlock.length > 0
+    // Le bloc est considéré actif s'il contient au moins une carte due
+    const isActive = dueInBlock.length > 0
     summary.push({ priority: block.priority, dueCount: dueInBlock.length, totalCount, isActive })
 
-    if (isActive) {
-      // MODIFICATION ICI : On prend tout le bloc mélangé d'un coup, sans le .slice() restrictif
-      session = shuffle(dueInBlock)
-      activeBlockFound = true
+    // STYLE ANKI : On cumule TOUS les chapitres dus de TOUS les blocs au lieu de s'arrêter au premier
+    if (dueInBlock.length > 0) {
+      allDueSessions = [...allDueSessions, ...shuffle(dueInBlock)]
     }
   }
 
-  return { session, summary }
+  return { session: allDueSessions, summary }
 }
