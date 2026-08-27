@@ -118,7 +118,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     } catch (err) {
       console.error(err)
       toast.error("Le traitement a échoué lors de l'analyse.")
-    } final {
+    } finally {
       setIsLoadingPgn(false)
     }
   }
@@ -139,6 +139,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
+    // CORRECTION ICI : On rajoute bien [0] pour attraper le premier fichier sélectionné
     const file = e.target.files?.[0]
     if (!file) return
 
