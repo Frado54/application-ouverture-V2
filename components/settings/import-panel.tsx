@@ -32,7 +32,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
-  // Fonction magique pour charger directement le fichier de 400 Mo depuis le dossier public
+  // Fonction pour charger directement le fichier de 400 Mo depuis le dossier public
   async function handleLoadLocalPgn() {
     setIsLoadingPgn(true)
     toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
@@ -43,7 +43,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       }
       const text = await response.text()
       setPgnText(text)
-      toast.success("Fichier PGN de 400 Mo chargé avec succès dans l'application !")
+      toast.success("Fichier PGN de 400 Mo chargé avec succès !")
       return text
     } catch (error) {
       console.error(error)
@@ -65,7 +65,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     toast.info("Synchronisation et calcul du répertoire en cours...")
 
     try {
-      // 1. SÉCURITÉ AUTOMATIQUE : Si le PGN en mémoire est vide (comme après un import JSON), on va le chercher tout seul
+      // SÉCURITÉ AUTOMATIQUE : Si la mémoire PGN est vide, on va la chercher tout seul
       if (!activePgnText.trim()) {
         const fetchedText = await handleLoadLocalPgn()
         if (fetchedText) {
@@ -93,7 +93,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
 
       const pgnChapters = pgnChaptersToRecord(pgnResult.data)
 
-      // 2. FUSION INTELLIGENTE : On fusionne l'historique existant pour ne pas perdre tes révisions du PC ou du mobile
+      // FUSION DE L'HISTORIQUE PRESERVÉ
       const storedRepertoire = loadStoredRepertoire()
       let finalFeedback = feedbackResult.data
 
@@ -111,7 +111,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         revisionBlocks: revisionResult.data,
         feedback: finalFeedback,
         pgnChapters,
-        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // pgn vidé pour éviter le crash de 5 Mo
+        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // Allègement mémoire LocalStorage
       })
 
       toast.success('Répertoire initialisé et sauvegardé avec succès !')
@@ -143,7 +143,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const backup = JSON.parse(event.target?.result as string)
         
@@ -153,33 +153,19 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         }
 
         const localData = backup.localStorage
+        
+        // METHODE SECURISEE : On remplit uniquement les cases à l'écran
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
-        
-        let pgnData = localData['chess-trainer:raw-pgn-text'] || ''
+        setPgnText('') // On force le vidage du PGN pour déclencher la sécurité automatique au clic sur Sauvegarder
 
-        // SÉCURITÉ MOBILE AUTOMATIQUE : Si le JSON ne contient pas le PGN, on l'aspire depuis le serveur Vercel
-        if (!pgnData.trim()) {
-          toast.info("Capsule détectée. Récupération automatique du PGN de 400 Mo depuis le serveur...")
-          const fetchedText = await handleLoadLocalPgn()
-          if (fetchedText) {
-            pgnData = fetchedText
-          } else {
-            toast.error("Impossible de finaliser l'import : le fichier PGN est introuvable sur le serveur.")
-            return
-          }
-        } else {
-          setPgnText(pgnData)
-        }
-
-        toast.success("Sauvegarde JSON synchronisée avec le PGN du serveur ! Cliquez sur le bouton orange pour valider.")
+        toast.success("Sauvegarde JSON lue avec succès ! Les zones ont été pré-remplies. Cliquez maintenant sur le bouton orange pour valider.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
     }
     reader.readAsText(file)
   }
-
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-24">
@@ -223,7 +209,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
-            Cliquez sur le bouton ci-dessous pour injecter directement le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> placé dans votre dossier public.
+            Le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> sera automatiquement chargé depuis le serveur lors de la validation.
           </FieldDescription>
           
           <Button 
@@ -244,12 +230,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               </>
             )}
           </Button>
-          
-          {pgnText && (
-            <p className="text-xs text-green-500 mt-1">
-              Fichier détecté en mémoire ({Math.round(pgnText.length / 1024 / 1024)} Mo). Prêt pour l'initialisation.
-            </p>
-          )}
         </Field>
       </FieldGroup>
 
