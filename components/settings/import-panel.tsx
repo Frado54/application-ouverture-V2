@@ -139,12 +139,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
-    // CORRECTION ICI : On rajoute bien [0] pour attraper le premier fichier sélectionné
     const file = e.target.files?.[0]
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const backup = JSON.parse(event.target?.result as string)
         
@@ -156,15 +155,31 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         const localData = backup.localStorage
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
-        setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
+        
+        let pgnData = localData['chess-trainer:raw-pgn-text'] || ''
 
-        toast.success("Capsule JSON décodée ! Vos zones ont été remplies. Cliquez sur Sauvegarder pour finaliser.")
+        // SÉCURITÉ MOBILE AUTOMATIQUE : Si le JSON ne contient pas le PGN, on l'aspire depuis le serveur Vercel
+        if (!pgnData.trim()) {
+          toast.info("Capsule détectée. Récupération automatique du PGN de 400 Mo depuis le serveur...")
+          const fetchedText = await handleLoadLocalPgn()
+          if (fetchedText) {
+            pgnData = fetchedText
+          } else {
+            toast.error("Impossible de finaliser l'import : le fichier PGN est introuvable sur le serveur.")
+            return
+          }
+        } else {
+          setPgnText(pgnData)
+        }
+
+        toast.success("Sauvegarde JSON synchronisée avec le PGN du serveur ! Cliquez sur le bouton orange pour valider.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
     }
     reader.readAsText(file)
   }
+
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-24">
