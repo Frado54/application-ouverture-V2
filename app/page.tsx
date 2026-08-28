@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { ManageView } from '@/components/manage/manage-view'
 import { BottomNav, type AppTab } from '@/components/nav/bottom-nav'
-import { ImportPanel } from '@/components/settings/import-panel'
+import { SettingsView } from '@/components/settings/settings-view' // 👈 Nouveau composant Réglages
 import { StatsView } from '@/components/stats/stats-view'
 import { TrainingView } from '@/components/training/training-view'
 import {
@@ -17,99 +17,73 @@ import { loadRawImportText, loadStoredRepertoire, saveFeedback, saveRawImportTex
 import type { DueChapter, FeedbackEntry, PgnChapter, RevisionPriorityBlock } from '@/lib/types'
 
 export default function Page() {
+  const isClient = typeof window !== 'undefined'
   const [mounted, setMounted] = useState(false)
 
-  const [revisionBlocks, setRevisionBlocks] = useState<RevisionPriorityBlock[]>(mockRevisionBlocks)
-  const [feedback, setFeedback] = useState<FeedbackEntry[]>(mockFeedback)
-  const [pgnChapters, setPgnChapters] = useState<Record<string, PgnChapter>>(mockPgnChapters)
-  const [importText, setImportText] = useState({ revision: '', feedback: '', pgn: '' })
+  const [revisionBlocks, setRevisionBlocks] = useState<RevisionPriorityBlock[]>(() => {
+    if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.revisionBlocks }
+    return mockRevisionBlocks
+  })
+  const [feedback, setFeedback] = useState<FeedbackEntry[]>(() => {
+    if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.feedback }
+    return mockFeedback
+  })
+  const [pgnChapters, setPgnChapters] = useState<Record<string, PgnChapter>>(() => {
+    if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.pgnChapters }
+    return mockPgnChapters
+  })
+  const [importText, setImportText] = useState(() => {
+    if (isClient) return loadRawImportText()
+    return { revision: '', feedback: '', pgn: '' }
+  })
 
-  const [view, setView] = useState<'dashboard' | 'training'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'training'>(() => {
+    if (isClient) return (localStorage.getItem('trainingView') as 'dashboard' | 'training') || 'dashboard'
+    return 'dashboard'
+  })
   const [activeTab, setActiveTab] = useState<AppTab>('aujourdhui')
-  const [activeSession, setActiveSession] = useState<DueChapter[]>([])
-
-  // ÉTATS DES STATS : Initialisés proprement à 0
-  const [totalSessionLength, setTotalSessionLength] = useState(0)
-  const [completedCount, setCompletedCount] = useState(0)
-
-  // 1. CHARGEMENT AU DÉMARRAGE (Hydratation Client)
-  useEffect(() => {
-    const stored = loadStoredRepertoire()
-    if (stored) {
-      setRevisionBlocks(stored.revisionBlocks)
-      setFeedback(stored.feedback)
-      setPgnChapters(stored.pgnChapters)
+  const [activeSession, setActiveSession] = useState<DueChapter[]>(() => {
+    if (isClient) {
+      const saved = localStorage.getItem('activeSession')
+      if (saved) { try { return JSON.parse(saved) } catch { return [] } }
     }
-    setImportText(loadRawImportText())
+    return []
+  })
 
-    // Récupération des statistiques persistées
-    const savedTotal = localStorage.getItem('totalSessionLength')
-    const savedCompleted = localStorage.getItem('completedCount')
-    const savedView = localStorage.getItem('trainingView')
-    const savedActiveSession = localStorage.getItem('activeSession')
+  const [totalSessionLength, setTotalSessionLength] = useState<number>(() => {
+    if (isClient) { const saved = localStorage.getItem('totalSessionLength'); if (saved !== null) return Number(saved) }
+    return 0
+  })
+  const [completedCount, setCompletedCount] = useState<number>(() => {
+    if (isClient) { const saved = localStorage.getItem('completedCount'); if (saved !== null) return Number(saved) }
+    return 0
+  })
 
-    if (savedTotal) setTotalSessionLength(Number(savedTotal))
-    if (savedCompleted) setCompletedCount(Number(savedCompleted))
-    if (savedView === 'training') setView('training')
-    if (savedActiveSession) {
-      try {
-        setActiveSession(JSON.parse(savedActiveSession))
-      } catch (e) {
-        console.error("Erreur de parsing de l'activeSession", e)
-      }
-    }
-
-    setMounted(true)
-  }, [])
-
-  // 2. PERSISTANCE AUTOMATIQUE DES STATS ET DE L'ÉCRAN
-  useEffect(() => {
-    if (!mounted) return
-    localStorage.setItem('totalSessionLength', totalSessionLength.toString())
-  }, [totalSessionLength, mounted])
-
-  useEffect(() => {
-    if (!mounted) return
-    localStorage.setItem('completedCount', completedCount.toString())
-  }, [completedCount, mounted])
-
-  useEffect(() => {
-    if (!mounted) return
-    localStorage.setItem('trainingView', view)
-  }, [view, mounted])
-
-  useEffect(() => {
-    if (!mounted) return
-    localStorage.setItem('activeSession', JSON.stringify(activeSession))
-  }, [activeSession, mounted])
-
+  useEffect(() => { setMounted(true) }, [])
 
   const { session, summary } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
 
+  useEffect(() => { if (mounted) localStorage.setItem('totalSessionLength', totalSessionLength.toString()) }, [totalSessionLength, mounted])
+  useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
+  useEffect(() => { if (mounted) localStorage.setItem('trainingView', view) }, [view, mounted])
+  useEffect(() => { if (mounted) localStorage.setItem('activeSession', JSON.stringify(activeSession)) }, [activeSession, mounted])
+
   function handleStart() {
     setActiveSession(session)
-    setTotalSessionLength(session.length) // Ex: 30
-    setCompletedCount(0)                  // Reset à 0 pour une NOUVELLE session
+    setTotalSessionLength(session.length) 
+    setCompletedCount(0)                  
     setView('training')
   }
 
   function handleAddFeedback(entry: FeedbackEntry) {
-    setFeedback((prev) => {
-      const next = [...prev, entry]
-      saveFeedback(next)
-      return next
-    })
-    
-    // On avance dans les compteurs
+    setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
     setCompletedCount((prev) => prev + 1)
-    // On retire le chapitre qui vient d'être fait de la session active en mémoire
     setActiveSession((prev) => prev.slice(1))
   }
 
   function handleExit() {
     setView('dashboard')
     setActiveSession([])
-    // Les stats restent dans le localStorage pour être lues par l'onglet Stats !
     setActiveTab('stats')
   }
 
@@ -125,38 +99,36 @@ export default function Page() {
     setImportText(data.rawText)
     saveRepertoire({ revisionBlocks: data.revisionBlocks, feedback: data.feedback, pgnChapters: data.pgnChapters })
     saveRawImportText(data.rawText)
-    
-    // Réinitialise les compteurs lors d'une nouvelle importation
     setTotalSessionLength(0)
     setCompletedCount(0)
   }
 
-  if (!mounted) {
-    return (
-      <div className="flex min-h-svh items-center justify-center bg-background">
-        <div className="size-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
-      </div>
-    )
-  }
+  if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
 
   if (view === 'training') {
-    return (
-      <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
-    )
+    return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
   return (
     <div className="min-h-svh bg-background pb-24">
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
-      {activeTab === 'gerer' && <ManageView revisionBlocks={revisionBlocks} />}
-      {activeTab === 'stats' && (
-        <StatsView 
-          sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} 
-          completedCount={completedCount}
-          summary={summary} 
-        />
+      
+      {/* 📥 L'onglet GERER contient maintenant la vue ET le panneau d'import */}
+      {activeTab === 'gerer' && (
+        <div className="space-y-8 p-4 max-w-2xl mx-auto">
+          <ManageView revisionBlocks={revisionBlocks} />
+          <div className="border-t border-border pt-6">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">Sauvegardes & Imports</h2>
+            <ImportPanel initialText={importText} onImport={handleImport} />
+          </div>
+        </div>
       )}
-      {activeTab === 'reglages' && <ImportPanel initialText={importText} onImport={handleImport} />}
+      
+      {activeTab === 'stats' && <StatsView sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} completedCount={completedCount} summary={summary} />}
+      
+      {/* ⚙️ L'onglet REGLAGES contient maintenant l'activation des notifications */}
+      {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />}
+      
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
