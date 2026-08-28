@@ -28,10 +28,11 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<AppTab>('aujourdhui')
   const [activeSession, setActiveSession] = useState<DueChapter[]>([])
 
-  // NOUVEAUX ÉTATS POUR LES STATS : Conserve la mémoire de l'avancement réel de la session
+  // ÉTATS DES STATS : Initialisés proprement à 0
   const [totalSessionLength, setTotalSessionLength] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
 
+  // 1. CHARGEMENT AU DÉMARRAGE (Hydratation Client)
   useEffect(() => {
     const stored = loadStoredRepertoire()
     if (stored) {
@@ -40,15 +41,55 @@ export default function Page() {
       setPgnChapters(stored.pgnChapters)
     }
     setImportText(loadRawImportText())
+
+    // Récupération des statistiques persistées
+    const savedTotal = localStorage.getItem('totalSessionLength')
+    const savedCompleted = localStorage.getItem('completedCount')
+    const savedView = localStorage.getItem('trainingView')
+    const savedActiveSession = localStorage.getItem('activeSession')
+
+    if (savedTotal) setTotalSessionLength(Number(savedTotal))
+    if (savedCompleted) setCompletedCount(Number(savedCompleted))
+    if (savedView === 'training') setView('training')
+    if (savedActiveSession) {
+      try {
+        setActiveSession(JSON.parse(savedActiveSession))
+      } catch (e) {
+        console.error("Erreur de parsing de l'activeSession", e)
+      }
+    }
+
     setMounted(true)
   }, [])
+
+  // 2. PERSISTANCE AUTOMATIQUE DES STATS ET DE L'ÉCRAN
+  useEffect(() => {
+    if (!mounted) return
+    localStorage.setItem('totalSessionLength', totalSessionLength.toString())
+  }, [totalSessionLength, mounted])
+
+  useEffect(() => {
+    if (!mounted) return
+    localStorage.setItem('completedCount', completedCount.toString())
+  }, [completedCount, mounted])
+
+  useEffect(() => {
+    if (!mounted) return
+    localStorage.setItem('trainingView', view)
+  }, [view, mounted])
+
+  useEffect(() => {
+    if (!mounted) return
+    localStorage.setItem('activeSession', JSON.stringify(activeSession))
+  }, [activeSession, mounted])
+
 
   const { session, summary } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
 
   function handleStart() {
     setActiveSession(session)
-    setTotalSessionLength(session.length) // Enregistre le nombre de départ (ex: 30)
-    setCompletedCount(0)                  // Remet le compteur de réussites à 0
+    setTotalSessionLength(session.length) // Ex: 30
+    setCompletedCount(0)                  // Reset à 0 pour une NOUVELLE session
     setView('training')
   }
 
@@ -58,14 +99,17 @@ export default function Page() {
       saveFeedback(next)
       return next
     })
-    // Dès qu'on donne un avis (Facile, Difficile), on ajoute +1 au compteur de progression
+    
+    // On avance dans les compteurs
     setCompletedCount((prev) => prev + 1)
+    // On retire le chapitre qui vient d'être fait de la session active en mémoire
+    setActiveSession((prev) => prev.slice(1))
   }
 
   function handleExit() {
     setView('dashboard')
     setActiveSession([])
-    // CHANGEMENT ICI : Au lieu de forcer le retour à l'accueil, on ouvre directement l'onglet Stats !
+    // Les stats restent dans le localStorage pour être lues par l'onglet Stats !
     setActiveTab('stats')
   }
 
@@ -81,6 +125,7 @@ export default function Page() {
     setImportText(data.rawText)
     saveRepertoire({ revisionBlocks: data.revisionBlocks, feedback: data.feedback, pgnChapters: data.pgnChapters })
     saveRawImportText(data.rawText)
+    
     // Réinitialise les compteurs lors d'une nouvelle importation
     setTotalSessionLength(0)
     setCompletedCount(0)
@@ -104,11 +149,6 @@ export default function Page() {
     <div className="min-h-svh bg-background pb-24">
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       {activeTab === 'gerer' && <ManageView revisionBlocks={revisionBlocks} />}
-      {/* 
-        MODIFICATION ICI : 
-        Si on n'est pas en session, on montre les données calculées par v0.
-        Si on vient de faire une session, on force l'affichage dynamique (ex: completedCount / totalSessionLength).
-      */}
       {activeTab === 'stats' && (
         <StatsView 
           sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} 
@@ -121,3 +161,4 @@ export default function Page() {
     </div>
   )
 }
+
