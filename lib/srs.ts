@@ -103,13 +103,14 @@ export function buildSession(
     const dueInBlock: DueChapter[] = []
     let totalCount = 0
 
-    for (const study of shuffle(block.studies)) {
+    // MODIFICATION 1 : On retire le shuffle() sur les études pour respecter leur ordre naturel
+    for (const study of block.studies) {
       for (const chapter of study.chapters) {
         totalCount++
         if (isChapterDue(feedback, study.name, chapter, today)) {
           dueInBlock.push({
-            study: study.name,
-            chapter,
+            study: study.name, // Contient le nom de l'étude (ex: "Espagnole (blanc)")
+            chapter,           // Objet ou string contenant les détails du chapitre
             priority: block.priority,
             color: getPieceColor(study.name),
           })
@@ -121,11 +122,29 @@ export function buildSession(
     const isActive = dueInBlock.length > 0
     summary.push({ priority: block.priority, dueCount: dueInBlock.length, totalCount, isActive })
 
-    // STYLE ANKI : On cumule TOUS les chapitres dus de TOUS les blocs au lieu de s'arrêter au premier
+    // STYLE ANKI : On cumule TOUS les chapitres dus de TOUS les blocs
+    // MODIFICATION 2 : On retire le shuffle(dueInBlock) pour ne pas mélanger les chapitres
     if (dueInBlock.length > 0) {
-      allDueSessions = [...allDueSessions, ...shuffle(dueInBlock)]
+      allDueSessions = [...allDueSessions, ...dueInBlock]
     }
   }
 
-  return { session: allDueSessions, summary }
+  // 👇 MODIFICATION 3 : TRI FINAL POUR TOUT REGROUPER PAR OUVERTURE
+  // On regroupe d'abord par nom d'étude, puis par numéro de chapitre si c'est la même étude
+  const sortedSession = [...allDueSessions].sort((a, b) => {
+    // 1. Comparaison par nom d'étude (ex: "Espagnole (blanc)" vs "Défense Indienne")
+    if (a.study !== b.study) {
+      return a.study.localeCompare(b.study)
+    }
+
+    // 2. Si c'est la même étude, on trie proprement par numéro de chapitre (ex: 1.1, 1.2, 1.10)
+    // On extrait le nom ou l'ID du chapitre (s'il s'agit d'un objet, adaptez selon votre structure, ex: a.chapter.name)
+    const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
+    const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+    
+    return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
+  })
+
+  // On renvoie la session triée de manière stable
+  return { session: sortedSession, summary }
 }
