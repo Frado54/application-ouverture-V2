@@ -130,14 +130,9 @@ export default function Page() {
       )}
 
       
-      {/* 3. Onglet Statistiques */}
-      {activeTab === 'stats' && (
-        <StatsView 
-          sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} 
-          completedCount={completedCount} 
-          summary={summary} 
-        />
-      )}
+      {/* 3. Onglet Statistiques (Nouveau composant autonome) */}
+      {activeTab === 'stats' && <StatsView feedback={feedback} />}
+
       
       {/* 4. Onglet Réglages (Notifications) */}
       {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
