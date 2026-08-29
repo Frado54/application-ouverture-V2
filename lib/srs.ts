@@ -103,14 +103,14 @@ export function buildSession(
     const dueInBlock: DueChapter[] = []
     let totalCount = 0
 
-    // MODIFICATION 1 : On retire le shuffle() sur les études pour respecter leur ordre naturel
+    // On parcourt les études dans leur ordre naturel
     for (const study of block.studies) {
       for (const chapter of study.chapters) {
         totalCount++
         if (isChapterDue(feedback, study.name, chapter, today)) {
           dueInBlock.push({
-            study: study.name, // Contient le nom de l'étude (ex: "Espagnole (blanc)")
-            chapter,           // Objet ou string contenant les détails du chapitre
+            study: study.name,
+            chapter,
             priority: block.priority,
             color: getPieceColor(study.name),
           })
@@ -118,33 +118,45 @@ export function buildSession(
       }
     }
 
-    // Le bloc est considéré actif s'il contient au moins une carte due
     const isActive = dueInBlock.length > 0
     summary.push({ priority: block.priority, dueCount: dueInBlock.length, totalCount, isActive })
 
-    // STYLE ANKI : On cumule TOUS les chapitres dus de TOUS les blocs
-    // MODIFICATION 2 : On retire le shuffle(dueInBlock) pour ne pas mélanger les chapitres
+    // On cumule tous les chapitres dus
     if (dueInBlock.length > 0) {
       allDueSessions = [...allDueSessions, ...dueInBlock]
     }
   }
 
-  // 👇 MODIFICATION 3 : TRI FINAL POUR TOUT REGROUPER PAR OUVERTURE
-  // On regroupe d'abord par nom d'étude, puis par numéro de chapitre si c'est la même étude
+  // 👇 LE TRIPLE TRI PARFAIT : PRIORITÉ STRICTE, PUIS OUVERTURE, PUIS CHAPITRE
   const sortedSession = [...allDueSessions].sort((a, b) => {
-    // 1. Comparaison par nom d'étude (ex: "Espagnole (blanc)" vs "Défense Indienne")
+    // 1. Dictionnaire des poids pour gérer la casse en MAJUSCULES de ton fichier
+    const poidsPriorite: Record<string, number> = {
+      'PRIORITÉ ABSOLUE': 5,
+      'PRIORITÉ ÉLEVÉE': 4,
+      'PRIORITÉ MOYENNE': 3,
+      'PRIORITÉ FAIBLE': 2,
+      'PRIORITÉTRÈS FAIBLE': 1
+    }
+
+    const poidsA = poidsPriorite[a.priority] ?? 0
+    const poidsB = poidsPriorite[b.priority] ?? 0
+
+    // Si les priorités diffèrent, la plus haute passe devant
+    if (poidsA !== poidsB) {
+      return poidsB - poidsA
+    }
+
+    // 2. Si même priorité, on regroupe par nom d'ouverture (ex: Espagnole)
     if (a.study !== b.study) {
       return a.study.localeCompare(b.study)
     }
 
-    // 2. Si c'est la même étude, on trie proprement par numéro de chapitre (ex: 1.1, 1.2, 1.10)
-    // On extrait le nom ou l'ID du chapitre (s'il s'agit d'un objet, adaptez selon votre structure, ex: a.chapter.name)
+    // 3. Si même ouverture, tri numérique stable des sous-chapitres (1.1, 1.2, 1.10)
     const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
     const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
     
     return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
   })
 
-  // On renvoie la session triée de manière stable
   return { session: sortedSession, summary }
 }
