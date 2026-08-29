@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
-import { ManageView } from '@/components/manage/manage-view'
 import { BottomNav, type AppTab } from '@/components/nav/bottom-nav'
 import { ImportPanel } from '@/components/settings/import-panel'
-import { SettingsView } from '@/components/settings/settings-view' // 👈 Nouveau composant Réglages
+import { SettingsView } from '@/components/settings/settings-view'
 import { StatsView } from '@/components/stats/stats-view'
 import { TrainingView } from '@/components/training/training-view'
 import {
@@ -62,7 +61,7 @@ export default function Page() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const { session, summary } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
+  const { session } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
 
   useEffect(() => { if (mounted) localStorage.setItem('totalSessionLength', totalSessionLength.toString()) }, [totalSessionLength, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
@@ -115,7 +114,7 @@ export default function Page() {
       {/* 1. Onglet Aujourd'hui */}
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       
-      {/* 2. Onglet Gérer (Entièrement nettoyé et épuré) */}
+      {/* 2. Onglet Gérer (Zone de texte épurée) */}
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">
           <div>
@@ -124,18 +123,16 @@ export default function Page() {
               Visualisez, modifiez ou exportez les données brutes de vos ouvertures (SRS & Feedback).
             </p>
           </div>
-    
           <ImportPanel initialText={importText} onImport={handleImport} />
         </div>
       )}
 
-      
-      {/* 3. Onglet Statistiques (Nouveau composant autonome) */}
+      {/* 3. Onglet Statistiques global */}
       {activeTab === 'stats' && <StatsView feedback={feedback} />}
 
-      
       {/* 4. Onglet Réglages (Notifications) */}
       {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
+      
       {/* Barre de navigation mobile basse */}
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
