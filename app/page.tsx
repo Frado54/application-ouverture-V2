@@ -115,16 +115,20 @@ export default function Page() {
       {/* 1. Onglet Aujourd'hui */}
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       
-      {/* 2. Onglet Gérer (Fusionné avec l'ImportPanel) */}
+      {/* 2. Onglet Gérer (Entièrement nettoyé et épuré) */}
       {activeTab === 'gerer' && (
-        <div className="space-y-8 p-4 max-w-2xl mx-auto">
-          <ManageView revisionBlocks={revisionBlocks} />
-          <div className="border-t border-border pt-6">
-            <h2 className="text-xl font-semibold mb-4 text-foreground">Sauvegardes & Imports</h2>
-            <ImportPanel initialText={importText} onImport={handleImport} />
+        <div className="p-4 max-w-2xl mx-auto space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight mb-1 text-foreground">Gestion du Répertoire</h1>
+            <p className="text-sm text-muted-foreground mb-6">
+              Visualisez, modifiez ou exportez les données brutes de vos ouvertures (SRS & Feedback).
+            </p>
           </div>
+    
+          <ImportPanel initialText={importText} onImport={handleImport} />
         </div>
       )}
+
       
       {/* 3. Onglet Statistiques */}
       {activeTab === 'stats' && (
@@ -137,12 +141,6 @@ export default function Page() {
       
       {/* 4. Onglet Réglages (Notifications) */}
       {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />}
-      
-      {/* TEXTE TÉMOIN */}
-      <p className="text-center text-red-500 font-bold mt-4">TEST CONFIGURATION OK</p>
-      
-      {/* Barre de navigation mobile basse */}
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
 }
