@@ -1,87 +1,122 @@
 'use client'
 
-import { PriorityBlockSummary } from '@/lib/srs'
+import { Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import type { DueChapter } from '@/lib/types'
 
-interface StatsViewProps {
-  sessionLength: number
-  completedCount: number
-  summary: PriorityBlockSummary[]
+// Structure attendue pour le récapitulatif des blocs
+interface PriorityBlockSummary {
+  priority: string
+  dueCount: number
+  totalCount: number
+  isActive: boolean
 }
 
-export function StatsView({ sessionLength, completedCount, summary }: StatsViewProps) {
-  // Calcul du pourcentage global de la session en cours
+interface DashboardViewProps {
+  session: DueChapter[]
+  onStart: () => void
+}
+
+export function DashboardView({ session, onStart }: DashboardViewProps) {
+  const isClient = typeof window !== 'undefined'
+
+  // 1. Récupération dynamique des compteurs réels depuis le localStorage
+  const completedCount = isClient ? Number(localStorage.getItem('completedCount') || 0) : 0
+  const totalSessionLength = isClient ? Number(localStorage.getItem('totalSessionLength') || 0) : 0
+
+  // Longueur effective pour la jauge du jour
+  const sessionLength = totalSessionLength > 0 ? totalSessionLength : session.length
+
+  // Pourcentage global
   const globalPercentage = sessionLength > 0 
     ? Math.min(100, Math.round((completedCount / sessionLength) * 100)) 
     : 0
 
+  // 2. Reconstruction dynamique du résumé des blocs (summary) directement sur l'accueil
+  const summary: PriorityBlockSummary[] = useMemo(() => {
+    const map = new Map<string, { due: number; total: number }>()
+    
+    // On regroupe les éléments de la session en cours par priorité
+    session.forEach((item) => {
+      const current = map.get(item.priority) || { due: 0, total: 0 }
+      map.set(item.priority, {
+        due: current.due + 1,
+        total: current.total + 1, // Approximation basée sur les cartes actives
+      })
+    })
+
+    // S'il n'y a plus rien, on affiche une liste par défaut propre
+    const priorities = ['PRIORITÉ ABSOLUE', 'ÉLEVÉE', 'MOYENNE', 'FAIBLE', 'TRÈS FAIBLE']
+    return priorities.map((p) => {
+      const counts = map.get(p) || { due: 0, total: 0 }
+      return {
+        priority: p,
+        dueCount: counts.due,
+        totalCount: counts.total || 0,
+        isActive: counts.due > 0,
+      }
+    })
+  }, [session])
+
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 text-foreground animate-fade-in">
-      {/* HEADER */}
+      {/* HEADER PRINCIPAL */}
       <header className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-[#E0532C]">Statistiques</p>
-        <h1 className="font-serif text-2xl font-semibold text-foreground">Ta Progression</h1>
-        <p className="text-sm text-muted-foreground">
-          Vue d'ensemble de ton avancement et de l'état de ton répertoire.
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wider text-[#E0532C]">Entraîneur de Répertoire</p>
+        <h1 className="font-serif text-3xl font-semibold text-zinc-100">Aujourd'hui</h1>
+        <p className="text-sm text-muted-foreground">Prêt pour tes révisions quotidiennes ?</p>
       </header>
 
-      {/* 1. CARTE DE PROGRESSION GLOBALE (DYNAMIQUE) */}
+      {/* BOUTON JOUER PRINCIPAL */}
+      <div className="bg-[#131315] border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-4 shadow-xl">
+        <div className="space-y-1">
+          <p className="text-4xl font-extrabold font-mono text-zinc-100">{session.length}</p>
+          <p className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">Chapitres restants à valider</p>
+        </div>
+
+        <Button
+          onClick={onStart}
+          disabled={session.length === 0}
+          className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-base transition-all transform active:scale-95 shadow-lg shadow-indigo-600/10 disabled:opacity-40"
+        >
+          <Play className="size-5 fill-current" />
+          <span>Démarrer l'entraînement</span>
+        </Button>
+      </div>
+
+      {/* JAUGE DE LA SESSION EN COURS */}
       <div className="rounded-xl border border-zinc-800 bg-[#151517] p-5 space-y-4 shadow-md">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-base text-zinc-200">Session du jour</h3>
-            <p className="text-2xl font-mono font-bold text-primary mt-1">
-              {completedCount} <span className="text-zinc-500 text-lg">/ {sessionLength}</span>
+            <h3 className="font-semibold text-sm text-zinc-300">Avancement de la session</h3>
+            <p className="text-2xl font-mono font-bold text-indigo-400 mt-1">
+              {completedCount} <span className="text-zinc-500 text-base">/ {sessionLength}</span>
             </p>
-            <p className="text-xs text-muted-foreground mt-1">chapitres révisés aujourd'hui</p>
           </div>
           
-          {/* CERCLE DE PROGRESSION STYLE TABLEAU DE BORD */}
-          <div className="relative size-20 flex items-center justify-center">
+          <div className="relative size-16 flex items-center justify-center">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-zinc-800"
-                strokeWidth="3"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className="text-indigo-500 transition-all duration-500 ease-out"
+              <circle cx="18" cy="18" r="15.915" fill="none" stroke="#27272A" strokeWidth="3.5" />
+              <circle
+                className="text-indigo-500 transition-all duration-500"
                 strokeDasharray={`${globalPercentage}, 100`}
-                strokeWidth="3"
+                strokeWidth="3.5"
                 strokeLinecap="round"
                 stroke="currentColor"
                 fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                cx="18" cy="18" r="15.915"
               />
             </svg>
-            <span className="absolute font-mono text-base font-bold text-zinc-100">{globalPercentage}%</span>
+            <span className="absolute font-mono text-xs font-bold text-zinc-200">{globalPercentage}%</span>
           </div>
-        </div>
-
-        {/* BARRE DE PROGRESSION HORIZONTALE EN RAPPEL */}
-        <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-indigo-500 to-primary transition-all duration-500 ease-out"
-            style={{ width: `${globalPercentage}%` }}
-          />
         </div>
       </div>
 
-      {/* 2. ÉTAT DES BLOCS DE PRIORITÉ (DYNAMIQUE VIA LE SUMMARY) */}
+      {/* LISTE DES BLOCS DE PRIORITÉ */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 px-1">Progression par blocs</h2>
-        
-        <div className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-1">Progression par blocs</h2>
+        <div className="space-y-2.5">
           {summary.map((block) => {
-            // Calcul du nombre de chapitres déjà appris ou travaillés dans ce bloc
-            const enCoursOuTermines = block.totalCount - block.dueCount
-            const blockPercentage = block.totalCount > 0 
-              ? Math.round((enCoursOuTermines / block.totalCount) * 100) 
-              : 100
-
-            // Gestion dynamique de la couleur des puces selon la priorité
             const colorClass = block.priority.includes('ABSOLUE') ? 'bg-red-500' 
                              : block.priority.includes('ÉLEVÉE') ? 'bg-orange-500'
                              : block.priority.includes('MOYENNE') ? 'bg-yellow-500'
@@ -90,41 +125,23 @@ export function StatsView({ sessionLength, completedCount, summary }: StatsViewP
             return (
               <div 
                 key={block.priority} 
-                className={`p-4 rounded-xl border transition-all ${
+                className={`p-3.5 rounded-xl border transition-all ${
                   block.isActive 
-                    ? 'bg-[#18181B] border-zinc-800 opacity-100' 
-                    : 'bg-zinc-900/30 border-zinc-900/50 opacity-60'
+                    ? 'bg-[#18181B] border-zinc-800/80 opacity-100' 
+                    : 'bg-zinc-900/20 border-zinc-900/30 opacity-40'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`size-2.5 rounded-full ${colorClass}`} />
-                    <span className="font-mono text-xs font-bold tracking-wide text-zinc-200 uppercase">
+                    <span className={`size-2 rounded-full ${colorClass}`} />
+                    <span className="font-mono text-[11px] font-bold tracking-wide text-zinc-300 uppercase">
                       {block.priority}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="font-mono text-xs font-semibold text-zinc-400">
-                      {block.dueCount} dus <span className="text-zinc-600">/ {block.totalCount} totaux</span>
-                    </span>
-                  </div>
+                  <span className="font-mono text-xs font-semibold text-zinc-400">
+                    {block.dueCount} en attente
+                  </span>
                 </div>
-
-                {/* Barre d'avancement du bloc spécifique */}
-                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-500 ${
-                      block.dueCount === 0 ? 'bg-emerald-500' : 'bg-zinc-500'
-                    }`}
-                    style={{ width: `${blockPercentage}%` }}
-                  />
-                </div>
-                
-                {block.dueCount === 0 && block.totalCount > 0 && (
-                  <p className="text-[10px] text-emerald-500 font-medium mt-1.5 flex items-center gap-1 animate-pulse">
-                    🎉 Ce bloc est entièrement nettoyé pour aujourd'hui !
-                  </p>
-                )}
               </div>
             )
           })}
@@ -133,3 +150,6 @@ export function StatsView({ sessionLength, completedCount, summary }: StatsViewP
     </div>
   )
 }
+
+// Petit import pour le hook useMemo
+import { useMemo } from 'react'
