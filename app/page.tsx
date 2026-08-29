@@ -111,9 +111,10 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background pb-24">
+      {/* 1. Onglet Aujourd'hui */}
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       
-      {/* 📥 L'onglet GERER contient maintenant la vue ET le panneau d'import */}
+      {/* 2. Onglet Gérer (Fusionné avec l'ImportPanel) */}
       {activeTab === 'gerer' && (
         <div className="space-y-8 p-4 max-w-2xl mx-auto">
           <ManageView revisionBlocks={revisionBlocks} />
@@ -124,16 +125,23 @@ export default function Page() {
         </div>
       )}
       
-      {activeTab === 'stats' && <StatsView sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} completedCount={completedCount} summary={summary} />}
+      {/* 3. Onglet Statistiques */}
+      {activeTab === 'stats' && (
+        <StatsView 
+          sessionLength={totalSessionLength > 0 ? totalSessionLength : session.length} 
+          completedCount={completedCount} 
+          summary={summary} 
+        />
+      )}
       
-      {/* ⚙️ L'onglet REGLAGES contient maintenant l'activation des notifications */}
+      {/* 4. Onglet Réglages (Notifications) */}
       {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />}
       
+      {/* TEXTE TÉMOIN */}
+      <p className="text-center text-red-500 font-bold mt-4">TEST CONFIGURATION OK</p>
+      
+      {/* Barre de navigation mobile basse */}
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
-{/* TEXTE TÉMOIN */}
-<p className="text-center text-red-500 font-bold">TEST CONFIGURATION OK</p>
-<BottomNav activeTab={activeTab} onChange={setActiveTab} />
-
-
+}
