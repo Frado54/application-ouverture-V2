@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, FileText, Loader2 } from 'lucide-react'
+import { Download, FileText, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -32,7 +32,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
-  // Fonction magique pour charger directement le fichier de 400 Mo depuis le dossier public
+  // Fonction pour charger le fichier depuis le dossier public
   async function handleLoadLocalPgn() {
     setIsLoadingPgn(true)
     toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
@@ -43,11 +43,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       }
       const text = await response.text()
       setPgnText(text)
-      toast.success("Fichier PGN de 400 Mo chargé avec succès dans l'application !")
+      toast.success("Fichier PGN de 400 Mo chargé avec succès !")
       return text
     } catch (error) {
       console.error(error)
-      toast.error("Impossible de lire toutes_les_ouvertures.txt. Vérifiez qu'il est bien dans le dossier public.")
+      toast.error("Impossible de lire toutes_les_ouvertures.txt.")
       return null
     } finally {
       setIsLoadingPgn(false)
@@ -65,7 +65,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     toast.info("Synchronisation et calcul du répertoire en cours...")
 
     try {
-      // 1. SÉCURITÉ AUTOMATIQUE : Si le PGN en mémoire est vide (comme après un import JSON), on va le chercher tout seul
       if (!activePgnText.trim()) {
         const fetchedText = await handleLoadLocalPgn()
         if (fetchedText) {
@@ -93,7 +92,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
 
       const pgnChapters = pgnChaptersToRecord(pgnResult.data)
 
-      // 2. FUSION INTELLIGENTE : On fusionne l'historique existant pour ne pas perdre tes révisions du PC ou du mobile
       const storedRepertoire = loadStoredRepertoire()
       let finalFeedback = feedbackResult.data
 
@@ -111,7 +109,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         revisionBlocks: revisionResult.data,
         feedback: finalFeedback,
         pgnChapters,
-        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" }, // pgn vidé pour éviter le crash de 5 Mo
+        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" },
       })
 
       toast.success('Répertoire initialisé et sauvegardé avec succès !')
@@ -139,7 +137,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
-    // CORRECTION ICI : On rajoute bien [0] pour attraper le premier fichier sélectionné
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -147,7 +144,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     reader.onload = (event) => {
       try {
         const backup = JSON.parse(event.target?.result as string)
-        
         if (!backup.localStorage) {
           toast.error("Ce fichier JSON ne contient pas une sauvegarde valide.")
           return
@@ -158,7 +154,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        toast.success("Capsule JSON décodée ! Vos zones ont été remplies. Cliquez sur Sauvegarder pour finaliser.")
+        toast.success("Capsule JSON décodée ! Cliquez sur Sauvegarder.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
@@ -167,15 +163,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-24">
-      <header className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-[#E0532C]">Données</p>
-        <h1 className="font-serif text-2xl font-semibold text-foreground">Réglages</h1>
-        <p className="text-sm text-muted-foreground">
-          Configurez votre répertoire d'ouvertures local.
-        </p>
-      </header>
-
+    <div className="w-full flex flex-col gap-6">
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="revision-text">Fichier Révision</FieldLabel>
@@ -187,7 +175,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             value={revisionText}
             onChange={(e) => setRevisionText(e.target.value)}
             placeholder={'PRIORITÉ ABSOLUE\n...'}
-            className="min-h-32 bg-[#1E1E20] font-mono text-xs"
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
           />
         </Field>
 
@@ -201,68 +189,71 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder={'Étude;chapitre;niveau;date;erreurs'}
-            className="min-h-32 bg-[#1E1E20] font-mono text-xs"
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
           />
         </Field>
 
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
-            Cliquez sur le bouton ci-dessous pour injecter directement le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> placé dans votre dossier public.
+            Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
           </FieldDescription>
           
-          <Button 
-            type="button"
-            onClick={handleLoadLocalPgn} 
-            disabled={isLoadingPgn}
-            className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
-          >
-            {isLoadingPgn ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Chargement des 400 Mo...
-              </>
-            ) : (
-              <>
-                <FileText className="size-4" />
-                {pgnText ? "✓ PGN Chargé (Prêt)" : "Charger toutes_les_ouvertures.txt depuis le PC"}
-              </>
-            )}
-          </Button>
-          
-          {pgnText && (
-            <p className="text-xs text-green-500 mt-1">
-              Fichier détecté en mémoire ({Math.round(pgnText.length / 1024 / 1024)} Mo). Prêt pour l'initialisation.
-            </p>
-          )}
+          <div className="mt-2 flex flex-col items-center gap-4 w-full">
+            {/* 1. BOUTON BLEU (Charger PGN) */}
+            <Button
+              type="button"
+              onClick={handleLoadLocalPgn}
+              disabled={isLoadingPgn}
+              className="w-full h-auto min-h-12 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-xs sm:text-sm md:text-base text-center transition-colors whitespace-normal break-words shadow-md"
+            >
+              {isLoadingPgn ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-full animate-spin" />
+                  Traitement des 400 Mo...
+                </>
+              ) : (
+                "Charger toutes_les_ouvertures.txt depuis le dossier public"
+              )}
+            </Button>
+
+            {/* 2. BOUTON ORANGE (Sauvegarder) */}
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={isLoadingPgn}
+              className="w-full h-auto min-h-12 py-3 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs sm:text-sm md:text-base text-center transition-colors whitespace-normal shadow-md"
+            >
+              Sauvegarder et Initialiser mon Répertoire
+            </Button>
+
+            {/* CONTENEUR GRILLE POUR EXPORT / IMPORT POUR ALLÉGER LA HAUTEUR */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              {/* 3. BOUTON GRIS (Exporter) */}
+              <Button
+                type="button"
+                onClick={handleExport}
+                className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors whitespace-normal"
+              >
+                <Download className="size-4 shrink-0" />
+                <span>Exporter (.json)</span>
+              </Button>
+
+              {/* 4. BOUTON GRIS ENTRÉE FICHIER (Importer) */}
+              <label className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors cursor-pointer text-center select-none active:scale-[0.98]">
+                <Upload className="size-4 shrink-0" />
+                <span>Importer (.json)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportJson}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
         </Field>
       </FieldGroup>
-
-      <div className="flex flex-col gap-3">
-        <Button onClick={handleSave} className="h-11 w-full bg-[#E0532C] text-white hover:bg-[#E0532C]/90">
-          Sauvegarder et Initialiser mon Répertoire
-        </Button>
-        
-        <Button
-          variant="outline"
-          onClick={handleExport}
-          className="h-11 w-full border-white/10 bg-transparent text-foreground hover:bg-white/5"
-        >
-          <Download className="size-4" />
-          Exporter mon répertoire (.json)
-        </Button>
-
-        <label className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 bg-transparent text-sm font-medium text-foreground hover:bg-white/5 transition-colors">
-          <FileText className="size-4" />
-          Importer une sauvegarde (.json)
-          <input 
-            type="file" 
-            accept=".json" 
-            onChange={handleImportJson} 
-            className="hidden" 
-          />
-        </label>
-      </div>
     </div>
   )
 }
