@@ -71,7 +71,7 @@ export function StatsView({ sessionLength, completedCount, summary }: StatsViewP
 
       {/* 2. ÉTAT DES BLOCS DE PRIORITÉ (DYNAMIQUE VIA LE SUMMARY) */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 px-1">État de tes blocs SRS</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 px-1">Progression par blocs</h2>
         
         <div className="space-y-3">
           {summary.map((block) => {
