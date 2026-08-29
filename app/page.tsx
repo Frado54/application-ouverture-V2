@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { DashboardView } from '@/components/dashboard/dashboard-view'
+import DashboardView from '@/components/dashboard/dashboard-view'
 import { BottomNav, type AppTab } from '@/components/nav/bottom-nav'
 import { ImportPanel } from '@/components/settings/import-panel'
 import { SettingsView } from '@/components/settings/settings-view'
