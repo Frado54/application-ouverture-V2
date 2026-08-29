@@ -140,7 +140,9 @@ export default function Page() {
       )}
       
       {/* 4. Onglet Réglages (Notifications) */}
-      {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />}
+      {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
+      {/* Barre de navigation mobile basse */}
+      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
 }
