@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { ManageView } from '@/components/manage/manage-view'
 import { BottomNav, type AppTab } from '@/components/nav/bottom-nav'
+import { ImportPanel } from '@/components/settings/import-panel'
 import { SettingsView } from '@/components/settings/settings-view' // 👈 Nouveau composant Réglages
 import { StatsView } from '@/components/stats/stats-view'
 import { TrainingView } from '@/components/training/training-view'
