@@ -132,7 +132,7 @@ export default function Page() {
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )
-}{/* TEXTE TÉMOIN */}
+{/* TEXTE TÉMOIN */}
 <p className="text-center text-red-500 font-bold">TEST CONFIGURATION OK</p>
 <BottomNav activeTab={activeTab} onChange={setActiveTab} />
 
