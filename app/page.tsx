@@ -20,6 +20,7 @@ export default function Page() {
   const isClient = typeof window !== 'undefined'
   const [mounted, setMounted] = useState(false)
 
+  // ÉTATS CLASSIQUES
   const [revisionBlocks, setRevisionBlocks] = useState<RevisionPriorityBlock[]>(() => {
     if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.revisionBlocks }
     return mockRevisionBlocks
@@ -28,7 +29,7 @@ export default function Page() {
     if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.feedback }
     return mockFeedback
   })
-  const [pgnChapters, setPgnChapters] = useState<Record<string, PgnChapter>>(() => {
+  const [pgnChapters, setPgnChapters] = useState<Record<string, PgnChapter>>( () => {
     if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.pgnChapters }
     return mockPgnChapters
   })
@@ -50,6 +51,7 @@ export default function Page() {
     return []
   })
 
+  // JAUGE DU JOUR
   const [totalSessionLength, setTotalSessionLength] = useState<number>(() => {
     if (isClient) { const saved = localStorage.getItem('totalSessionLength'); if (saved !== null) return Number(saved) }
     return 0
@@ -59,10 +61,33 @@ export default function Page() {
     return 0
   })
 
+  // 👇 NOUVEAUX COMPTEURS EXCLUSIFS À L'APPLICATION
+  const [appChapters, setAppChapters] = useState<number>(() => {
+    if (isClient) return Number(localStorage.getItem('app_total_chapters') || 0)
+    return 0
+  })
+  const [appErrors, setAppErrors] = useState<number>(() => {
+    if (isClient) return Number(localStorage.getItem('app_total_errors') || 0)
+    return 0
+  })
+  const [appTime, setAppTime] = useState<number>(() => {
+    if (isClient) return Number(localStorage.getItem('app_total_time') || 0)
+    return 0
+  })
+
+  // TOP DÉPART POUR CHRONOMÉTRER LE CHAPITRE EN COURS
+  const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
+
   useEffect(() => { setMounted(true) }, [])
 
   const { session } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
 
+  // PERSISTANCE DES COMPTEURS D'APPLICATION
+  useEffect(() => { if (mounted) localStorage.setItem('app_total_chapters', appChapters.toString()) }, [appChapters, mounted])
+  useEffect(() => { if (mounted) localStorage.setItem('app_total_errors', appErrors.toString()) }, [appErrors, mounted])
+  useEffect(() => { if (mounted) localStorage.setItem('app_total_time', appTime.toString()) }, [appTime, mounted])
+
+  // PERSISTANCE JAUGE DU JOUR
   useEffect(() => { if (mounted) localStorage.setItem('totalSessionLength', totalSessionLength.toString()) }, [totalSessionLength, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('trainingView', view) }, [view, mounted])
@@ -72,12 +97,29 @@ export default function Page() {
     setActiveSession(session)
     setTotalSessionLength(session.length) 
     setCompletedCount(0)                  
+    setChapterStartTime(Date.now()) // Démarre le chrono du tout premier chapitre
     setView('training')
   }
 
   function handleAddFeedback(entry: FeedbackEntry) {
+    // 1. Calcul du temps passé sur ce chapitre précis
+    const endTime = Date.now()
+    const secondsElapsed = Math.round((endTime - chapterStartTime) / 1000)
+    
+    // Sécurité AFK : On plafonne à 3 minutes (180s) max par chapitre
+    const safeSeconds = Math.min(secondsElapsed, 180)
+
+    // 2. Mise à jour des statistiques cumulées de l'application
+    setAppChapters((prev) => prev + 1)
+    setAppErrors((prev) => prev + (entry.errors || 0))
+    setAppTime((prev) => prev + safeSeconds)
+
+    // 3. Suite de la logique SRS standard
     setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
     setCompletedCount((prev) => prev + 1)
+    
+    // Le chapitre suivant commence MAINTENANT
+    setChapterStartTime(Date.now())
     setActiveSession((prev) => prev.slice(1))
   }
 
@@ -101,6 +143,8 @@ export default function Page() {
     saveRawImportText(data.rawText)
     setTotalSessionLength(0)
     setCompletedCount(0)
+    
+    // Note : On ne réinitialise PAS les compteurs globaux de l'application lors d'un import de fichier
   }
 
   if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
@@ -111,29 +155,29 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background pb-24">
-      {/* 1. Onglet Aujourd'hui */}
       {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
       
-      {/* 2. Onglet Gérer (Zone de texte épurée) */}
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight mb-1 text-foreground">Gestion du Répertoire</h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              Visualisez, modifiez ou exportez les données brutes de vos ouvertures (SRS & Feedback).
-            </p>
+            <p className="text-sm text-muted-foreground mb-6">Visualisez, modifiez ou exportez les données brutes.</p>
           </div>
           <ImportPanel initialText={importText} onImport={handleImport} />
         </div>
       )}
 
-      {/* 3. Onglet Statistiques global */}
-      {activeTab === 'stats' && <StatsView feedback={feedback} />}
+      {/* 👇 ON PASSE LES NOUVELLES INFOS CUMULÉES À L'ONGLET STATS */}
+      {activeTab === 'stats' && (
+        <StatsView 
+          totalChapters={appChapters} 
+          totalErrors={appErrors} 
+          totalTimeInSeconds={appTime} 
+          feedback={feedback}
+        />
+      )}
 
-      {/* 4. Onglet Réglages (Notifications) */}
       {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
-      
-      {/* Barre de navigation mobile basse */}
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
     </div>
   )

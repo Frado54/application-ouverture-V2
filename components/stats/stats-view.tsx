@@ -1,29 +1,24 @@
 'use client'
 
 import { useMemo } from 'react'
-import { BarChart3, Brain, Calendar, Clock, Percent, Trophy } from 'lucide-react'
+import { Brain } from 'lucide-react'
 import type { FeedbackEntry, FeedbackLevel } from '@/lib/types'
 
 interface StatsViewProps {
+  totalChapters: number
+  totalErrors: number
+  totalTimeInSeconds: number
   feedback: FeedbackEntry[]
 }
 
-export function StatsView({ feedback }: StatsViewProps) {
+export function StatsView({ totalChapters, totalErrors, totalTimeInSeconds, feedback }: StatsViewProps) {
   const stats = useMemo(() => {
-    // 1. Total des chapitres révisés
-    const totalRevisions = feedback.length
-
-    // 2. Total des erreurs
-    const totalErrors = feedback.reduce((sum, f) => sum + (f.errors || 0), 0)
-
-    // 3. Temps total estimé (ex: ~2 minutes par chapitre révisé en moyenne)
-    const minutesParChapitre = 2
-    const totalMinutes = totalRevisions * minutesParChapitre
-    const hours = Math.floor(totalMinutes / 60)
-    const mins = totalMinutes % 60
+    // 1. Conversion exacte du temps de jeu de l'application (Heures / Minutes) à partir de maintenant
+    const hours = Math.floor(totalTimeInSeconds / 3600)
+    const mins = Math.floor((totalTimeInSeconds % 3600) / 60)
     const tempsTotalStr = `${hours}h ${mins.toString().padStart(2, '0')}m`
 
-    // 4. Répartition des difficultés
+    // 2. Répartition des difficultés (Conserve l'historique complet pour l'anneau)
     const dictionnaireDifficultes: Record<FeedbackLevel, number> = {
       'très difficile': 0,
       'difficile': 0,
@@ -38,13 +33,12 @@ export function StatsView({ feedback }: StatsViewProps) {
       }
     })
 
-    // 5. Calcul de la précision moyenne (Basé sur les coups sans erreur)
-    // On estime la précision : (Total des coups - Erreurs) / Total, limité proprement
-    const precisionMoyenne = totalRevisions > 0 
-      ? Math.max(50, Math.round(((totalRevisions * 10 - totalErrors) / (totalRevisions * 10)) * 100))
+    // 3. Calcul de la précision moyenne sur l'application (sur une échelle de 10 clics max par chapitre)
+    const precisionMoyenne = totalChapters > 0 
+      ? Math.max(50, Math.round(((totalChapters * 10 - totalErrors) / (totalChapters * 10)) * 100))
       : 100
 
-    // 6. Calcul de la série actuelle (Streak de jours consécutifs)
+    // 4. Calcul de la série actuelle (Streak de jours consécutifs - Ton algorithme initial sécurisé)
     let serieActuelle = 0
     if (feedback.length > 0) {
       const datesUniques = Array.from(new Set(feedback.map(f => f.date))).sort().reverse()
@@ -71,22 +65,20 @@ export function StatsView({ feedback }: StatsViewProps) {
     }
 
     return {
-      totalRevisions,
-      totalErrors,
       tempsTotalStr,
       precisionMoyenne,
       serieActuelle,
       repartition: dictionnaireDifficultes
     }
-  }, [feedback])
+  }, [totalChapters, totalErrors, totalTimeInSeconds, feedback])
 
   // Couleurs pour l'anneau de répartition
   const couleursDifficultes = {
-    'très difficile': '#EF4444', // Rouge
-    'difficile': '#F97316',      // Orange
-    'moyen': '#EAB308',         // Jaune
-    'facile': '#22C55E',        // Vert
-    'très facile': '#06B6D4'     // Cyan
+    'très difficile': '#EF4444',
+    'difficile': '#F97316',
+    'moyen': '#EAB308',
+    'facile': '#22C55E',
+    'très facile': '#06B6D4'
   }
 
   return (
@@ -99,21 +91,21 @@ export function StatsView({ feedback }: StatsViewProps) {
 
       {/* GRILLE DES 4 CARTES SUPÉRIEURES */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* CARTE 1 : CHAPITRES */}
+        {/* CARTE 1 : CHAPITRES (Chronométrés à partir de maintenant) */}
         <div className="bg-[#131315] border border-zinc-800/80 rounded-xl p-5 space-y-2">
           <p className="text-xs text-zinc-400 font-medium">Chapitres révisés</p>
-          <p className="text-3xl font-bold font-mono text-zinc-100">{stats.totalRevisions}</p>
-          <p className="text-[10px] text-zinc-500">Volume total cumulé</p>
+          <p className="text-3xl font-bold font-mono text-zinc-100">{totalChapters}</p>
+          <p className="text-[10px] text-zinc-500">Sur cette application</p>
         </div>
 
-        {/* CARTE 2 : ERREURS */}
+        {/* CARTE 2 : ERREURS (Chronométrées à partir de maintenant) */}
         <div className="bg-[#131315] border border-zinc-800/80 rounded-xl p-5 space-y-2">
           <p className="text-xs text-zinc-400 font-medium">Erreurs totales</p>
-          <p className="text-3xl font-bold font-mono text-zinc-100">{stats.totalErrors}</p>
-          <p className="text-[10px] text-zinc-500">Total sur les variantes</p>
+          <p className="text-3xl font-bold font-mono text-zinc-100">{totalErrors}</p>
+          <p className="text-[10px] text-zinc-500">Sur cet échiquier</p>
         </div>
 
-        {/* CARTE 3 : STREAK */}
+        {/* CARTE 3 : STREAK (Historique préservé) */}
         <div className="bg-[#131315] border border-zinc-800/80 rounded-xl p-5 space-y-2">
           <p className="text-xs text-zinc-400 font-medium">Série actuelle</p>
           <p className="text-3xl font-bold font-mono text-indigo-400">
@@ -122,11 +114,11 @@ export function StatsView({ feedback }: StatsViewProps) {
           <p className="text-[10px] text-zinc-500">Régularité d'entraînement</p>
         </div>
 
-        {/* CARTE 4 : TEMPS TOTAL */}
+        {/* CARTE 4 : TEMPS TOTAL (Calculé à la seconde près) */}
         <div className="bg-[#131315] border border-zinc-800/80 rounded-xl p-5 space-y-2">
-          <p className="text-xs text-zinc-400 font-medium">Temps total</p>
+          <p className="text-xs text-zinc-400 font-medium">Temps de jeu</p>
           <p className="text-3xl font-bold font-mono text-indigo-400">{stats.tempsTotalStr}</p>
-          <p className="text-[10px] text-zinc-500">Estimation d'apprentissage</p>
+          <p className="text-[10px] text-zinc-500">Durée réelle sur l'application</p>
         </div>
       </div>
 
@@ -142,7 +134,6 @@ export function StatsView({ feedback }: StatsViewProps) {
             <div className="relative size-28 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="#27272A" strokeWidth="4" />
-                {/* Un anneau simple bicolore ou neutre par défaut pour rester fluide sans scripts tiers */}
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="#6366F1" strokeWidth="4" strokeDasharray="70 100" strokeLinecap="round" />
               </svg>
               <div className="absolute text-center">
@@ -154,7 +145,7 @@ export function StatsView({ feedback }: StatsViewProps) {
             <div className="space-y-1.5 w-full sm:w-auto">
               {(Object.keys(stats.repartition) as FeedbackLevel[]).map(level => {
                 const count = stats.repartition[level]
-                const PCT = stats.totalRevisions > 0 ? Math.round((count / stats.totalRevisions) * 100) : 0
+                const PCT = feedback.length > 0 ? Math.round((count / feedback.length) * 100) : 0
                 return (
                   <div key={level} className="flex items-center justify-between gap-8 text-xs">
                     <div className="flex items-center gap-2">
@@ -172,9 +163,9 @@ export function StatsView({ feedback }: StatsViewProps) {
         {/* BLOC PRÉCISION MOYENNE */}
         <div className="bg-[#131315] border border-zinc-800/80 rounded-xl p-5 flex flex-col justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-zinc-300">Précision moyenne</h3>
+            <h3 className="text-sm font-semibold text-zinc-300">Précision tactique</h3>
             <p className="text-4xl font-bold font-mono text-emerald-400 mt-2">{stats.precisionMoyenne}%</p>
-            <p className="text-xs text-zinc-500">Calculée sur la base du taux de réussite global de tes variantes</p>
+            <p className="text-xs text-zinc-500">Taux de réussite calculé uniquement sur tes sessions d'échiquier Next.js</p>
           </div>
 
           {/* PETITE LIGNE DE GRAPHIC SIMULÉE EN SVG STYLE EMERGENT */}
