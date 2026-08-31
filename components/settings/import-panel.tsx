@@ -15,7 +15,7 @@ interface ImportPanelProps {
   onImport: (data: {
     revisionBlocks: RevisionPriorityBlock[]
     feedback: FeedbackEntry[]
-    pgChapters: Record<string, PgnChapter>
+    pgnChapters: Record<string, PgnChapter>
     rawText: { revision: string; feedback: string; pgn: string }
   }) => void
 }
@@ -153,7 +153,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        // CORRECTIF DIRECT : Injection immédiate de la mémoire dans le LocalStorage
+        // CORRECTIF DIRECT : Injection immédiate de la mémoire mobile dans le PC
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
