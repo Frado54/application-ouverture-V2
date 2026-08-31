@@ -154,13 +154,19 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        toast.success("Capsule JSON décodée ! Cliquez sur Sauvegarder.")
+        // 🛠️ CORRECTIF : On écrit directement la mémoire du téléphone dans le PC
+        Object.keys(localData).forEach((key) => {
+          localStorage.setItem(key, localData[key])
+        })
+
+        toast.success("Capsule JSON décodée et synchronisée ! Recharge la page ou clique sur Sauvegarder.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
     }
     reader.readAsText(file)
   }
+
 
   return (
     <div className="w-full flex flex-col gap-6">
