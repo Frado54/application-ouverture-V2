@@ -1,5 +1,6 @@
 'use client'
 
+import { Download, FileText, Loader2, Upload, Trash2 } from 'lucide-react' 
 import { useEffect, useState } from 'react'
 import { Download, FileText, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -166,38 +167,62 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     }
     reader.readAsText(file)
   }
+  const handleClearRevision = () => {
+    setRevisionText('')
+    toast.success('Zone Révision vidée')
+  }
+
+  const handleClearFeedback = () => {
+    setFeedbackText('')
+    toast.success('Zone Feedback vidée')
+  }
 
 
   return (
     <div className="w-full flex flex-col gap-6">
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="revision-text">Fichier Révision</FieldLabel>
+                {/* ZONE 1 : RÉVISION */}
+                <Field className="space-y-1">
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="revision-text">Fichier Révision</FieldLabel>
+            {/* Le bouton apparaît uniquement s'il y a du texte à effacer */}
+            {revisionText && (
+              <button
+                type="button"
+                onClick={handleClearRevision}
+                className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors p-1 rounded"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
           <FieldDescription>
             Contenu de <code className="font-mono text-xs">revision.txt</code>.
           </FieldDescription>
           <Textarea
-            id="revision-text"
-            value={revisionText}
-            onChange={(e) => setRevisionText(e.target.value)}
-            placeholder={'PRIORITÉ ABSOLUE\n...'}
-            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
-          />
-        </Field>
 
         <Field>
+        {/* ZONE 2 : FEEDBACK */}
+        <Field className="space-y-1">
+        <div className="flex items-center justify-between">
           <FieldLabel htmlFor="feedback-text">Historique Feedback</FieldLabel>
-          <FieldDescription>
-            Contenu de <code className="font-mono text-xs">feedback.txt</code>.
-          </FieldDescription>
-          <Textarea
-            id="feedback-text"
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-            placeholder={'Étude;chapitre;niveau;date;erreurs'}
-            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
-          />
-        </Field>
+          {/* Le bouton apparaît uniquement s'il y a du texte à effacer */}
+          {feedbackText && (
+            <button
+              type="button"
+              onClick={handleClearFeedback}
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors p-1 rounded"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Effacer</span>
+            </button>
+          )}
+        </div>
+        <FieldDescription>
+          Contenu de <code className="font-mono text-xs">feedback.txt</code>.
+        </FieldDescription>
+        <Textarea
 
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
