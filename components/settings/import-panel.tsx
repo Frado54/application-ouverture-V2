@@ -32,7 +32,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
-  // Fonction pour charger le fichier depuis le dossier public
   async function handleLoadLocalPgn() {
     setIsLoadingPgn(true)
     toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
@@ -80,12 +79,12 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       const pgnResult = parsePgnRepertoire(activePgnText)
 
       if (revisionResult.data.length === 0) {
-        toast.error('Aucun bloc de priorité reconnu dans "Fichier Révision".')
+        toast.error('Aucun bloc de priorité reconnu.')
         setIsLoadingPgn(false)
         return
       }
       if (pgnResult.data.length === 0) {
-        toast.error('Aucun chapitre PGN reconnu. Vérifiez l\'encodage.')
+        toast.error('Aucun chapitre PGN reconnu.')
         setIsLoadingPgn(false)
         return
       }
@@ -153,7 +152,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        // CORRECTIF DIRECT : Injection immédiate de la mémoire mobile dans le PC
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
@@ -233,8 +231,8 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
           />
         </Field>
 
-        {/* ZONE 3 : CHARGEMENT PGN ET GRILLE ACTIONS */}
-        <Field>
+        {/* ZONE 3 : CHARGEMENT PGN ET ACTIONS */}
+        <Field className="space-y-1">
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
             Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
@@ -268,3 +266,5 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <Button
+                type="button"
+                onClick={handleExport}
