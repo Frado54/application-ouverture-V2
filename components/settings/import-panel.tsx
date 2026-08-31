@@ -15,7 +15,7 @@ interface ImportPanelProps {
   onImport: (data: {
     revisionBlocks: RevisionPriorityBlock[]
     feedback: FeedbackEntry[]
-    pgnChapters: Record<string, PgnChapter>
+    pgChapters: Record<string, PgnChapter>
     rawText: { revision: string; feedback: string; pgn: string }
   }) => void
 }
@@ -153,7 +153,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        // 🛠️ CORRECTIF : On écrit directement la mémoire brute dans le PC pour forcer la synchro
+        // CORRECTIF DIRECT : Injection immédiate de la mémoire dans le LocalStorage
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
@@ -233,7 +233,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
           />
         </Field>
 
-        {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
+        {/* ZONE 3 : CHARGEMENT PGN ET GRILLE ACTIONS */}
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
@@ -241,7 +241,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
           </FieldDescription>
           
           <div className="mt-4 flex flex-col items-center gap-4 w-full">
-            {/* 1. BOUTON BLEU (Charger PGN) */}
             <Button
               type="button"
               onClick={handleLoadLocalPgn}
@@ -258,7 +257,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               )}
             </Button>
 
-            {/* 2. BOUTON ORANGE (Sauvegarder) */}
             <Button
               type="button"
               onClick={handleSave}
@@ -268,3 +266,5 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               Sauvegarder et Initialiser mon Répertoire
             </Button>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              <Button
