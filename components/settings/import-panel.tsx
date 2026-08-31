@@ -1,8 +1,7 @@
 'use client'
 
-import { Download, FileText, Loader2, Upload, Trash2 } from 'lucide-react' 
 import { useEffect, useState } from 'react'
-import { Download, FileText, Loader2, Upload } from 'lucide-react'
+import { Download, FileText, Loader2, Upload, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -92,7 +91,6 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
       }
 
       const pgnChapters = pgnChaptersToRecord(pgnResult.data)
-
       const storedRepertoire = loadStoredRepertoire()
       let finalFeedback = feedbackResult.data
 
@@ -155,18 +153,19 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        // 🛠️ CORRECTIF : On écrit directement la mémoire du téléphone dans le PC
+        // 🛠️ CORRECTIF : On écrit directement la mémoire brute dans le PC pour forcer la synchro
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
 
-        toast.success("Capsule JSON décodée et synchronisée ! Recharge la page ou clique sur Sauvegarder.")
+        toast.success("Capsule JSON décodée et synchronisée ! Cliquez sur Sauvegarder.")
       } catch (err) {
         toast.error("Erreur lors de la lecture du fichier JSON.")
       }
     }
     reader.readAsText(file)
   }
+
   const handleClearRevision = () => {
     setRevisionText('')
     toast.success('Zone Révision vidée')
@@ -177,15 +176,13 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     toast.success('Zone Feedback vidée')
   }
 
-
   return (
     <div className="w-full flex flex-col gap-6">
       <FieldGroup>
-                {/* ZONE 1 : RÉVISION */}
-                <Field className="space-y-1">
+        {/* ZONE 1 : RÉVISION */}
+        <Field className="space-y-1">
           <div className="flex items-center justify-between">
             <FieldLabel htmlFor="revision-text">Fichier Révision</FieldLabel>
-            {/* Le bouton apparaît uniquement s'il y a du texte à effacer */}
             {revisionText && (
               <button
                 type="button"
@@ -201,36 +198,49 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             Contenu de <code className="font-mono text-xs">revision.txt</code>.
           </FieldDescription>
           <Textarea
+            id="revision-text"
+            value={revisionText}
+            onChange={(e) => setRevisionText(e.target.value)}
+            placeholder={'PRIORITÉ ABSOLUE\n...'}
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
+          />
+        </Field>
 
-        <Field>
         {/* ZONE 2 : FEEDBACK */}
         <Field className="space-y-1">
-        <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="feedback-text">Historique Feedback</FieldLabel>
-          {/* Le bouton apparaît uniquement s'il y a du texte à effacer */}
-          {feedbackText && (
-            <button
-              type="button"
-              onClick={handleClearFeedback}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors p-1 rounded"
-            >
-              <Trash2 className="size-3.5" />
-              <span>Effacer</span>
-            </button>
-          )}
-        </div>
-        <FieldDescription>
-          Contenu de <code className="font-mono text-xs">feedback.txt</code>.
-        </FieldDescription>
-        <Textarea
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="feedback-text">Historique Feedback</FieldLabel>
+            {feedbackText && (
+              <button
+                type="button"
+                onClick={handleClearFeedback}
+                className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors p-1 rounded"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          <FieldDescription>
+            Contenu de <code className="font-mono text-xs">feedback.txt</code>.
+          </FieldDescription>
+          <Textarea
+            id="feedback-text"
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            placeholder={'Étude;chapitre;niveau;date;erreurs'}
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
+          />
+        </Field>
 
+        {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
         <Field>
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
             Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
           </FieldDescription>
           
-          <div className="mt-2 flex flex-col items-center gap-4 w-full">
+          <div className="mt-4 flex flex-col items-center gap-4 w-full">
             {/* 1. BOUTON BLEU (Charger PGN) */}
             <Button
               type="button"
@@ -258,33 +268,3 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               Sauvegarder et Initialiser mon Répertoire
             </Button>
 
-            {/* CONTENEUR GRILLE POUR EXPORT / IMPORT POUR ALLÉGER LA HAUTEUR */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              {/* 3. BOUTON GRIS (Exporter) */}
-              <Button
-                type="button"
-                onClick={handleExport}
-                className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors whitespace-normal"
-              >
-                <Download className="size-4 shrink-0" />
-                <span>Exporter (.json)</span>
-              </Button>
-
-              {/* 4. BOUTON GRIS ENTRÉE FICHIER (Importer) */}
-              <label className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors cursor-pointer text-center select-none active:scale-[0.98]">
-                <Upload className="size-4 shrink-0" />
-                <span>Importer (.json)</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportJson}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-        </Field>
-      </FieldGroup>
-    </div>
-  )
-}
