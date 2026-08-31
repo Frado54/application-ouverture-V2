@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Download, FileText, Loader2, Upload, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Textarea } from '@/components/ui/textarea'
 import { parseFeedbackFile, parsePgnRepertoire, parseRevisionFile, pgnChaptersToRecord } from '@/lib/parsers'
 import { exportLocalStorageBackup, loadStoredRepertoire } from '@/lib/storage'
 import type { FeedbackEntry, PgnChapter, RevisionPriorityBlock } from '@/lib/types'
@@ -30,6 +32,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     setPgnText(initialText.pgn)
   }, [initialText])
 
+  // Fonction pour charger le fichier depuis le dossier public
   async function handleLoadLocalPgn() {
     setIsLoadingPgn(true)
     toast.info("Lecture du gros fichier PGN en cours depuis le PC...")
@@ -150,6 +153,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
+        // 🛠️ CORRECTIF : On écrit directement la mémoire brute dans le PC pour forcer la synchro
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
@@ -174,11 +178,11 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
 
   return (
     <div className="w-full flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
+      <FieldGroup>
         {/* ZONE 1 : RÉVISION */}
-        <div className="flex flex-col gap-1.5">
+        <Field className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-200">Fichier Révision</span>
+            <FieldLabel htmlFor="revision-text">Fichier Révision</FieldLabel>
             {revisionText && (
               <button
                 type="button"
@@ -190,22 +194,22 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               </button>
             )}
           </div>
-          <span className="text-xs text-zinc-500">
+          <FieldDescription>
             Contenu de <code className="font-mono text-xs">revision.txt</code>.
-          </span>
-          <textarea
+          </FieldDescription>
+          <Textarea
             id="revision-text"
             value={revisionText}
             onChange={(e) => setRevisionText(e.target.value)}
             placeholder={'PRIORITÉ ABSOLUE\n...'}
-            className="min-h-32 bg-[#1E1E20] border border-zinc-800 rounded-lg p-3 font-mono text-xs w-full text-zinc-300 focus:outline-none focus:border-zinc-700"
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
           />
-        </div>
+        </Field>
 
         {/* ZONE 2 : FEEDBACK */}
-        <div className="flex flex-col gap-1.5">
+        <Field className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-200">Historique Feedback</span>
+            <FieldLabel htmlFor="feedback-text">Historique Feedback</FieldLabel>
             {feedbackText && (
               <button
                 type="button"
@@ -217,26 +221,27 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               </button>
             )}
           </div>
-          <span className="text-xs text-zinc-500">
+          <FieldDescription>
             Contenu de <code className="font-mono text-xs">feedback.txt</code>.
-          </span>
-          <textarea
+          </FieldDescription>
+          <Textarea
             id="feedback-text"
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder={'Étude;chapitre;niveau;date;erreurs'}
-            className="min-h-32 bg-[#1E1E20] border border-zinc-800 rounded-lg p-3 font-mono text-xs w-full text-zinc-300 focus:outline-none focus:border-zinc-700"
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
           />
-        </div>
+        </Field>
 
-        {/* ZONE 3 : CHARGEMENT PGN ET ACTIONS */}
-        <div className="flex flex-col gap-1.5 mt-2">
-          <span className="text-sm font-medium text-zinc-200">Répertoire PGN (Gros Fichier local)</span>
-          <span className="text-xs text-zinc-500">
+        {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
+        <Field>
+          <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
+          <FieldDescription>
             Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
-          </span>
+          </FieldDescription>
           
           <div className="mt-4 flex flex-col items-center gap-4 w-full">
+            {/* 1. BOUTON BLEU (Charger PGN) */}
             <Button
               type="button"
               onClick={handleLoadLocalPgn}
@@ -244,15 +249,16 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               className="w-full h-auto min-h-12 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-xs sm:text-sm md:text-base text-center transition-colors whitespace-normal break-words shadow-md"
             >
               {isLoadingPgn ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-full animate-spin" />
                   Traitement des 400 Mo...
-                </span>
+                </>
               ) : (
                 "Charger toutes_les_ouvertures.txt depuis le dossier public"
               )}
             </Button>
 
+            {/* 2. BOUTON ORANGE (Sauvegarder) */}
             <Button
               type="button"
               onClick={handleSave}
