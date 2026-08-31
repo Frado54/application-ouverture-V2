@@ -87,10 +87,33 @@ export function isChapterDue(
   chapter: string,
   today: Date = new Date(),
 ): boolean {
-  const entries = allFeedback.filter((f) => f.study === study && f.chapter === chapter)
+  // 🛠️ LE TRADUCTEUR SUPRÊME : Il récupère l'historique, peu importe le nom utilisé
+  const entries = allFeedback.filter((f) => {
+    // Égalité du chapitre
+    const memeChapitre = f.chapter === chapter;
+    if (!memeChapitre) return false;
+
+    // Correspondance intelligente et étanche (évite les inversions Blanc/Noir)
+    const nomPgn = study.toLowerCase().trim();         // ex: "sicilienne najdorf (blanc)"
+    const nomFeedback = f.study.toLowerCase().trim();   // ex: "najdorf (blanc)"
+
+    const estMemeEtude = (
+      nomPgn === nomFeedback ||
+      (nomPgn === "sicilienne najdorf (blanc)" && nomFeedback === "najdorf (blanc)") ||
+      (nomPgn === "sicilienne najdorf (noir)" && nomFeedback === "najdorf (noir)") ||
+      (nomPgn === "sicilienne fermée (noir)" && nomFeedback === "sicilienne fermée") ||
+      (nomPgn === "sicilienne dragon hyper-accéléré (blanc)" && nomFeedback === "dragon hyper-accéléré (blanc)")
+    );
+
+    return estMemeEtude;
+  });
+
+  if (entries.length === 0) return true
+
   const dueDate = computeDueDate(entries, today)
   return dueDate.getTime() <= startOfDay(today).getTime()
 }
+
 
 export interface PriorityBlockSummary {
   priority: string
