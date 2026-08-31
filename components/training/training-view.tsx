@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { ChessTrainingBoard } from './chess-training-board'
-import { SESSION_MAX_CHAPTERS } from '@/lib/srs'
 import type { DueChapter, FeedbackEntry, FeedbackLevel, PgnChapter } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -23,9 +22,15 @@ interface TrainingViewProps {
 }
 
 export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: TrainingViewProps) {
+  const isClient = typeof window !== 'undefined'
+  
   const [index, setIndex] = useState(0)
   const [chapterErrors, setChapterErrors] = useState(0)
   const [awaitingFeedback, setAwaitingFeedback] = useState(false)
+
+  // Récupération dynamique des compteurs persistés
+  const completedCount = isClient ? Number(localStorage.getItem('completedCount') || 0) : 0
+  const totalSessionLength = isClient ? Number(localStorage.getItem('totalSessionLength') || 0) : 0
 
   const chapter = session[index]
   const finished = index >= session.length
@@ -37,7 +42,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
         <div className="space-y-2">
           <h2 className="font-serif text-2xl font-semibold text-foreground">Session terminée</h2>
           <p className="text-muted-foreground">
-            Vous avez révisé {session.length} chapitre{session.length > 1 ? 's' : ''}. Bon travail !
+            Vous avez révisé tous les chapitres dus. Bon travail !
           </p>
         </div>
         <button
@@ -52,14 +57,16 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   }
 
   const pgn = pgnChapters[`${chapter.study}__${chapter.chapter}`]
-  const sessionCap = Math.min(session.length, SESSION_MAX_CHAPTERS)
+  
+  // 👇 LE CORRECTIF MAJEUR : Le maximum s'adapte à la longueur réelle cumulée de la session
+  const totalLength = totalSessionLength > 0 ? totalSessionLength : (session.length + completedCount)
+  const currentProgressCount = completedCount + index + 1
 
   if (!pgn) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 px-4 py-24 text-center">
         <p className="text-muted-foreground">
-          Aucun PGN trouvé pour {chapter.study} — chapitre {chapter.chapter}. Vérifiez votre import dans les
-          Paramètres.
+          Aucun PGN trouvé pour {chapter.study} — chapitre {chapter.chapter}. Vérifiez votre import dans la Gestion du Répertoire.
         </p>
         <button
           type="button"
@@ -101,15 +108,17 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
           <ArrowLeft className="size-4" aria-hidden="true" />
           Quitter la session
         </button>
+        {/* 🔢 AFFICHAGE DYNAMIQUE DU COMPTEUR DE VARIANTES */}
         <span className="font-mono text-sm text-muted-foreground">
-          {index + 1} / {sessionCap}
+          {Math.min(currentProgressCount, totalLength)} / {totalLength}
         </span>
       </div>
 
+      {/* 📊 BARRE DE PROGRESSION ORANGE DYNAMIQUE */}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${((index + (awaitingFeedback ? 1 : 0)) / sessionCap) * 100}%` }}
+          className="h-full rounded-full bg-[#E0532C] transition-all duration-300"
+          style={{ width: `${(Math.min(completedCount + index + (awaitingFeedback ? 1 : 0), totalLength) / totalLength) * 100}%` }}
         />
       </div>
 
