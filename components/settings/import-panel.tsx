@@ -267,4 +267,10 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             >
               Sauvegarder et Initialiser mon Répertoire
             </Button>
+            </div>
+        </Field>
+      </FieldGroup>
+    </div>
+  )
+}
 
