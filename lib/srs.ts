@@ -160,10 +160,10 @@ export function buildSession(
   const sortedSession = [...allDueSessions].sort((a, b) => {
     const poidsPriorite: Record<string, number> = {
       'PRIORITÉ ABSOLUE': 5,
-      'ÉLEVÉE': 4,
-      'MOYENNE': 3,
-      'FAIBLE': 2,
-      'TRÈS FAIBLE': 1
+      'PRIORITÉ ÉLEVÉE': 4,
+      'PRIORITÉ MOYENNE': 3,
+      'PRIORITÉ FAIBLE': 2,
+      'PRIORITÉ TRÈS FAIBLE': 1
     }
 
     const poidsA = poidsPriorite[a.priority] ?? 0
