@@ -35,6 +35,21 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   const chapter = session[index]
   const finished = index >= session.length
 
+  // Fonction utilitaire pour lire un effet sonore de l'échiquier
+  function playSound(type: 'move' | 'capture') {
+    const soundEnabled = localStorage.getItem('chess-trainer:sound-enabled') !== 'false'
+    if (!soundEnabled) return
+
+    try {
+      const audioUrl = type === 'capture' ? '/capture.mp3' : '/move.mp3'
+      const audio = new Audio(audioUrl)
+      audio.volume = 0.5 // Volume équilibré et discret
+      audio.play()
+    } catch (error) {
+      console.error("Erreur de lecture audio :", error)
+    }
+  }
+
   if (finished) {
     return (
       <div className="flex flex-col items-center gap-6 py-24 text-center">
@@ -58,7 +73,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
 
   const pgn = pgnChapters[`${chapter.study}__${chapter.chapter}`]
   
-  // 👇 LE CORRECTIF MAJEUR : Le maximum s'adapte à la longueur réelle cumulée de la session
+  // Le maximum s'adapte à la longueur réelle cumulée de la session
   const totalLength = totalSessionLength > 0 ? totalSessionLength : (session.length + completedCount)
   const currentProgressCount = completedCount + index + 1
 
@@ -79,12 +94,16 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     )
   }
 
+  // Intercepte la fin du chapitre sur l'échiquier et joue le bruit de déplacement
   function handleChapterComplete(errors: number) {
     setChapterErrors(errors)
     setAwaitingFeedback(true)
+    playSound('move') 
   }
 
+  // Intercepte le clic de notation et joue le bruit de validation
   function handleFeedback(level: FeedbackLevel) {
+    playSound('capture')
     onAddFeedback({
       study: chapter.study,
       chapter: chapter.chapter,
@@ -130,7 +149,14 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
         </p>
       </div>
 
-      <ChessTrainingBoard key={`${chapter.study}__${chapter.chapter}`} chapter={chapter} pgn={pgn} onComplete={handleChapterComplete} />
+      {/* L'échiquier reçoit une fonction anonyme pour jouer le son de déplacement à chaque coup intermédiaire */}
+      <ChessTrainingBoard 
+        key={`${chapter.study}__${chapter.chapter}`} 
+        chapter={chapter} 
+        pgn={pgn} 
+        onComplete={handleChapterComplete}
+        onMovePlayed={() => playSound('move')}
+      />
 
       {awaitingFeedback && (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-4">
