@@ -41,7 +41,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     if (!soundEnabled) return
 
     try {
-      const audioUrl = type === 'capture' ? '/capture.mp3' : '/move.mp3'
+      const audioUrl = type === 'capture' ? '/capture.mp3' : '/coup échec.mp3'
       const audio = new Audio(audioUrl)
       audio.volume = 0.5 // Volume équilibré et discret
       audio.play()
