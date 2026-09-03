@@ -16,9 +16,10 @@ interface ChessTrainingBoardProps {
   chapter: DueChapter
   pgn: PgnChapter
   onComplete: (errors: number) => void
+  onMovePlayed?: () => void // 🔊 AJOUT : Propriété pour notifier la vue qu'un coup a été joué
 }
 
-export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBoardProps) {
+export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: ChessTrainingBoardProps) {
   const chessRef = useRef(new Chess())
   const resolvedMoves = useMemo(() => resolveMoves(pgn.moves), [pgn])
   const userColor = chapter.color
@@ -31,19 +32,6 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
   const [message, setMessage] = useState<{ type: 'error' | 'hint'; text: string } | null>(null)
   const [completed, setCompleted] = useState(false)
   const completedRef = useRef(false)
-
-  // 1. REINITIALISATION DU MOTEUR QUAND LE CHAPITRE CHANGE
-  useEffect(() => {
-    chessRef.current = new Chess() // Recréer une partie propre à zéro
-    setFen(chessRef.current.fen())
-    setPly(0)
-    setErrors(0)
-    setSelected(null)
-    setLastMove(null)
-    setMessage(null)
-    setCompleted(false)
-    completedRef.current = false
-  }, [chapter, pgn])
 
   const expected = resolvedMoves[ply]
   const isOpponentTurn = !completed && !!expected && expected.color !== userColor
@@ -60,6 +48,10 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
       setFen(chessRef.current.fen())
       setLastMove({ from: move.from, to: move.to })
       setMessage(null)
+      
+      // 🔊 UNIQUE SIGNAL : On notifie la vue pour lancer le move.mp3 de l'adversaire
+      if (onMovePlayed) onMovePlayed()
+
       const next = ply + 1
       setPly(next)
       if (next >= resolvedMoves.length && !completedRef.current) {
@@ -70,7 +62,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
 
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ply, completed, resolvedMoves, userColor]) // Ajout des dépendances manquantes recommandées
+  }, [ply, completed])
 
   function attemptMove(from: string, to: string): boolean {
     if (completed || isOpponentTurn) return false
@@ -91,7 +83,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
       return false
     }
 
-    // 2. LE COUP EST LÉGAL : On vérifie maintenant s'il correspond à ton PGN
+    // 2. LE COUP EST LÉGAL ET CORRECT
     if (move.from === from && move.to === to) {
       const result = chessRef.current.move({ from, to, promotion: move.promotion })
       if (!result) return false
@@ -99,6 +91,10 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
       setLastMove({ from, to })
       setMessage(null)
       setSelected(null)
+
+      // 🔊 UNIQUE SIGNAL : On notifie la vue pour lancer le move.mp3 de ton coup
+      if (onMovePlayed) onMovePlayed()
+
       const next = ply + 1
       setPly(next)
       if (next >= resolvedMoves.length) {
@@ -108,7 +104,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
       return true
     }
 
-    // Le coup est tout à fait légal, mais ce n'est pas la variante apprise dans ton répertoire.
+    // Le coup est légal mais faux par rapport à la théorie
     setErrors((e) => e + 1)
     setMessage({ type: 'error', text: 'Incorrect — essayez encore' })
     setSelected(null)
