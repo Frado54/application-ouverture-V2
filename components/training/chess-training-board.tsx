@@ -32,6 +32,19 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
   const [completed, setCompleted] = useState(false)
   const completedRef = useRef(false)
 
+  // 1. REINITIALISATION DU MOTEUR QUAND LE CHAPITRE CHANGE
+  useEffect(() => {
+    chessRef.current = new Chess() // Recréer une partie propre à zéro
+    setFen(chessRef.current.fen())
+    setPly(0)
+    setErrors(0)
+    setSelected(null)
+    setLastMove(null)
+    setMessage(null)
+    setCompleted(false)
+    completedRef.current = false
+  }, [chapter, pgn])
+
   const expected = resolvedMoves[ply]
   const isOpponentTurn = !completed && !!expected && expected.color !== userColor
 
@@ -57,7 +70,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
 
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ply, completed])
+  }, [ply, completed, resolvedMoves, userColor]) // Ajout des dépendances manquantes recommandées
 
   function attemptMove(from: string, to: string): boolean {
     if (completed || isOpponentTurn) return false
@@ -66,14 +79,10 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
 
     // 1. FILTRE SILENCIEUX DES COUPS ILLÉGAUX (Style Lichess)
     try {
-      // On demande au moteur d'échecs (chess.js) la liste des coups légaux possibles pour cette case
       const movesLegaux = chessRef.current.moves({ square: from as any, verbose: true })
-      // On regarde si la case d'arrivée fait partie des coups autorisés par les règles du jeu
       const estLegal = movesLegaux.some((m) => m.to === to)
       
       if (!estLegal) {
-        // Le coup viole les règles (ex: manger sa propre pièce, déplacer une tour en diagonale).
-        // On remet la pièce en place en silence : PAS de pénalité d'erreur, PAS de message rouge.
         setSelected(null)
         return false
       }
@@ -100,7 +109,6 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
     }
 
     // Le coup est tout à fait légal, mais ce n'est pas la variante apprise dans ton répertoire.
-    // LÀ SEULEMENT, on applique la vraie pénalité d'erreur.
     setErrors((e) => e + 1)
     setMessage({ type: 'error', text: 'Incorrect — essayez encore' })
     setSelected(null)
@@ -125,7 +133,6 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete }: ChessTrainingBo
 
   function handlePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean {
     if (!targetSquare) return false
-    // SÉCURITÉ : Si on lâche la pièce sur sa case de départ, on annule sans compter d'erreur
     if (sourceSquare === targetSquare) return false
     return attemptMove(sourceSquare, targetSquare)
   }

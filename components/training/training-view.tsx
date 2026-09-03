@@ -35,15 +35,16 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   const chapter = session[index]
   const finished = index >= session.length
 
-  // Fonction utilitaire pour lire un effet sonore de l'échiquier
+  // Moteur audio propre
   function playSound(type: 'move' | 'capture') {
     const soundEnabled = localStorage.getItem('chess-trainer:sound-enabled') !== 'false'
     if (!soundEnabled) return
 
     try {
-      const audioUrl = type === 'capture' ? '/capture.mp3' : '/coup échec.mp3'
+      // 🎯 SÉCURITÉ EXTRA : On force 'move.mp3' pour éliminer les bruits de capture intempestifs
+      const audioUrl = type === 'capture' ? '/capture.mp3' : '/move.mp3'
       const audio = new Audio(audioUrl)
-      audio.volume = 0.5 // Volume équilibré et discret
+      audio.volume = 0.5
       audio.play()
     } catch (error) {
       console.error("Erreur de lecture audio :", error)
@@ -94,16 +95,15 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     )
   }
 
-  // Intercepte la fin du chapitre sur l'échiquier et joue le bruit de déplacement
+  // Déclenché à la fin du chapitre
   function handleChapterComplete(errors: number) {
     setChapterErrors(errors)
     setAwaitingFeedback(true)
-    playSound('move') 
+    playSound('move') // 🔊 Vrai bruit de pièce au dernier coup !
   }
 
-  // Intercepte le clic de notation et joue le bruit de validation
+  // Déclenché au clic sur les boutons d'évaluation
   function handleFeedback(level: FeedbackLevel) {
-    playSound('capture')
     onAddFeedback({
       study: chapter.study,
       chapter: chapter.chapter,
@@ -127,13 +127,11 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
           <ArrowLeft className="size-4" aria-hidden="true" />
           Quitter la session
         </button>
-        {/* 🔢 AFFICHAGE DYNAMIQUE DU COMPTEUR DE VARIANTES */}
         <span className="font-mono text-sm text-muted-foreground">
           {Math.min(currentProgressCount, totalLength)} / {totalLength}
         </span>
       </div>
 
-      {/* 📊 BARRE DE PROGRESSION ORANGE DYNAMIQUE */}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div
           className="h-full rounded-full bg-[#E0532C] transition-all duration-300"
@@ -149,13 +147,13 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
         </p>
       </div>
 
-      {/* L'échiquier reçoit une fonction anonyme pour jouer le son de déplacement à chaque coup intermédiaire */}
+      {/* ♟️ LIAISON DYNAMIQUE POUR TOUS LES COUPS INTERMÉDIAIRES */}
       <ChessTrainingBoard 
         key={`${chapter.study}__${chapter.chapter}`} 
         chapter={chapter} 
         pgn={pgn} 
         onComplete={handleChapterComplete}
-        onMovePlayed={() => playSound('move')}
+        onMovePlayed={() => playSound('move')} // 🔊 Force chaque coup de l'arbre à faire un bruit normal
       />
 
       {awaitingFeedback && (
