@@ -41,8 +41,8 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     if (!soundEnabled) return
 
     try {
-      // 🎯 SÉCURITÉ EXTRA : On force 'move.mp3' pour éliminer les bruits de capture intempestifs
-      const audioUrl = type === 'capture' ? '/capture.mp3' : '/move.mp3'
+      // 🎯 SÉCURITÉ EXTRA : On force 'coup.mp3' pour éliminer les bruits de capture intempestifs
+      const audioUrl = type === 'capture' ? '/capture.mp3' : '/coup.mp3'
       const audio = new Audio(audioUrl)
       audio.volume = 0.5
       audio.play()

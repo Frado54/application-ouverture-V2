@@ -46,16 +46,16 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
       const simulationChess = new Chess(chessRef.current.fen())
       const testMove = simulationChess.move({ from: fromSquare, to: toSquare })
       
-      // Si le coup génère une pièce capturée, on joue capture.mp3, sinon move.mp3
+      // Si le coup génère une pièce capturée, on joue capture.mp3, sinon coup.mp3
       const estUneCapture = testMove && testMove.captured !== undefined
-      const audioUrl = estUneCapture ? '/capture.mp3' : '/move.mp3'
+      const audioUrl = estUneCapture ? '/capture.mp3' : '/coup.mp3'
       
       const audio = new Audio(audioUrl)
       audio.volume = 0.5
       audio.play()
     } catch (error) {
       // Sécurité en cas d'erreur de simulation : on joue le son par défaut
-      const audio = new Audio('/move.mp3')
+      const audio = new Audio('/coup.mp3')
       audio.volume = 0.5
       audio.play()
     }
