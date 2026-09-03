@@ -16,7 +16,7 @@ interface ChessTrainingBoardProps {
   chapter: DueChapter
   pgn: PgnChapter
   onComplete: (errors: number) => void
-  onMovePlayed?: () => void // 🔊 AJOUT : Propriété pour notifier la vue qu'un coup a été joué
+  onMovePlayed?: () => void
 }
 
 export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: ChessTrainingBoardProps) {
@@ -36,6 +36,27 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
   const expected = resolvedMoves[ply]
   const isOpponentTurn = !completed && !!expected && expected.color !== userColor
 
+  // 🔊 MOTEUR AUDIO INTERNE AUTONOME (Indestructible)
+  function triggerLocalSound(fromSquare: string, toSquare: string) {
+    const soundEnabled = localStorage.getItem('chess-trainer:sound-enabled') !== 'false'
+    if (!soundEnabled) return
+
+    try {
+      // On regarde la case d'arrivée sur l'échiquier virtuel AVANT le coup pour savoir s'il y avait une pièce
+      const pieceSurCaseArrivee = chessRef.current.get(toSquare as any)
+      
+      // Si la case n'était pas vide, c'est une capture ! Sinon c'est un coup normal.
+      const estUneCapture = pieceSurCaseArrivee !== null
+
+      const audioUrl = estUneCapture ? '/capture.mp3' : '/move.mp3'
+      const audio = new Audio(audioUrl)
+      audio.volume = 0.5
+      audio.play()
+    } catch (error) {
+      console.error("Erreur audio interne :", error)
+    }
+  }
+
   // Opponent auto-plays its moves.
   useEffect(() => {
     if (completed) return
@@ -43,13 +64,15 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     if (!move || move.color === userColor) return
 
     const timer = setTimeout(() => {
+      // 🔊 JOUE LE SON DE L'ADVERSAIRE
+      triggerLocalSound(move.from, move.to)
+
       const result = chessRef.current.move({ from: move.from, to: move.to, promotion: move.promotion })
       if (!result) return
       setFen(chessRef.current.fen())
       setLastMove({ from: move.from, to: move.to })
       setMessage(null)
       
-      // 🔊 UNIQUE SIGNAL : On notifie la vue pour lancer le move.mp3 de l'adversaire
       if (onMovePlayed) onMovePlayed()
 
       const next = ply + 1
@@ -69,7 +92,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     const move = resolvedMoves[ply]
     if (!move) return false
 
-    // 1. FILTRE SILENCIEUX DES COUPS ILLÉGAUX (Style Lichess)
+    // 1. FILTRE SILENCIEUX DES COUPS ILLÉGAUX
     try {
       const movesLegaux = chessRef.current.moves({ square: from as any, verbose: true })
       const estLegal = movesLegaux.some((m) => m.to === to)
@@ -85,6 +108,9 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
 
     // 2. LE COUP EST LÉGAL ET CORRECT
     if (move.from === from && move.to === to) {
+      // 🔊 JOUE TON SON (Détecte automatiquement move ou capture !)
+      triggerLocalSound(from, to)
+
       const result = chessRef.current.move({ from, to, promotion: move.promotion })
       if (!result) return false
       setFen(chessRef.current.fen())
@@ -92,7 +118,6 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
       setMessage(null)
       setSelected(null)
 
-      // 🔊 UNIQUE SIGNAL : On notifie la vue pour lancer le move.mp3 de ton coup
       if (onMovePlayed) onMovePlayed()
 
       const next = ply + 1
