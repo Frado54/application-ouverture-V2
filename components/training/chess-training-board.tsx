@@ -36,24 +36,28 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
   const expected = resolvedMoves[ply]
   const isOpponentTurn = !completed && !!expected && expected.color !== userColor
 
-  // 🔊 MOTEUR AUDIO INTERNE AUTONOME (Indestructible)
-  function triggerLocalSound(fromSquare: string, toSquare: string) {
+  // 🔊 MOTEUR AUDIO INTERNE ULTRA-PRÉCIS
+  function playMoveSound(fromSquare: string, toSquare: string) {
     const soundEnabled = localStorage.getItem('chess-trainer:sound-enabled') !== 'false'
     if (!soundEnabled) return
 
     try {
-      // On regarde la case d'arrivée sur l'échiquier virtuel AVANT le coup pour savoir s'il y avait une pièce
-      const pieceSurCaseArrivee = chessRef.current.get(toSquare as any)
+      // On teste le coup de manière virtuelle pour savoir s'il s'agit d'une capture selon les règles
+      const simulationChess = new Chess(chessRef.current.fen())
+      const testMove = simulationChess.move({ from: fromSquare, to: toSquare })
       
-      // Si la case n'était pas vide, c'est une capture ! Sinon c'est un coup normal.
-      const estUneCapture = pieceSurCaseArrivee !== null
-
+      // Si le coup génère une pièce capturée, on joue capture.mp3, sinon move.mp3
+      const estUneCapture = testMove && testMove.captured !== undefined
       const audioUrl = estUneCapture ? '/capture.mp3' : '/move.mp3'
+      
       const audio = new Audio(audioUrl)
       audio.volume = 0.5
       audio.play()
     } catch (error) {
-      console.error("Erreur audio interne :", error)
+      // Sécurité en cas d'erreur de simulation : on joue le son par défaut
+      const audio = new Audio('/move.mp3')
+      audio.volume = 0.5
+      audio.play()
     }
   }
 
@@ -64,9 +68,10 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     if (!move || move.color === userColor) return
 
     const timer = setTimeout(() => {
-      // 🔊 JOUE LE SON DE L'ADVERSAIRE
-      triggerLocalSound(move.from, move.to)
+      // 1. Déclencher le son de l'adversaire avant d'appliquer le coup en RAM
+      playMoveSound(move.from, move.to)
 
+      // 2. Appliquer le coup
       const result = chessRef.current.move({ from: move.from, to: move.to, promotion: move.promotion })
       if (!result) return
       setFen(chessRef.current.fen())
@@ -92,7 +97,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     const move = resolvedMoves[ply]
     if (!move) return false
 
-    // 1. FILTRE SILENCIEUX DES COUPS ILLÉGAUX
+    // Filtre des coups illégaux
     try {
       const movesLegaux = chessRef.current.moves({ square: from as any, verbose: true })
       const estLegal = movesLegaux.some((m) => m.to === to)
@@ -106,11 +111,12 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
       return false
     }
 
-    // 2. LE COUP EST LÉGAL ET CORRECT
+    // Le coup est légal et correct par rapport au répertoire
     if (move.from === from && move.to === to) {
-      // 🔊 JOUE TON SON (Détecte automatiquement move ou capture !)
-      triggerLocalSound(from, to)
+      // 1. Déclencher ton son avant d'appliquer le coup en RAM
+      playMoveSound(from, to)
 
+      // 2. Appliquer le coup
       const result = chessRef.current.move({ from, to, promotion: move.promotion })
       if (!result) return false
       setFen(chessRef.current.fen())
@@ -129,7 +135,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
       return true
     }
 
-    // Le coup est légal mais faux par rapport à la théorie
+    // Le coup est légal mais faux théoriquement
     setErrors((e) => e + 1)
     setMessage({ type: 'error', text: 'Incorrect — essayez encore' })
     setSelected(null)
@@ -152,6 +158,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     }
   }
 
+  // Glisser-déposer de la pièce
   function handlePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean {
     if (!targetSquare) return false
     if (sourceSquare === targetSquare) return false
@@ -169,7 +176,7 @@ export function ChessTrainingBoard({ chapter, pgn, onComplete, onMovePlayed }: C
     setMessage({ type: 'hint', text: `Coup attendu : ${expected.san}` })
   }
 
-  // Call onComplete once the chapter has finished, outside of render.
+  // Déclenchement de la fin du chapitre
   useEffect(() => {
     if (completed) onComplete(errors)
     // eslint-disable-next-line react-hooks/exhaustive-deps
