@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { ChessTrainingBoard } from './chess-training-board'
+import { simulateNextIntervalStr } from '@/lib/srs' // 👈 1. Importation de ton calculateur de prédiction
 import type { DueChapter, FeedbackEntry, FeedbackLevel, PgnChapter } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -32,8 +33,18 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   const completedCount = isClient ? Number(localStorage.getItem('completedCount') || 0) : 0
   const totalSessionLength = isClient ? Number(localStorage.getItem('totalSessionLength') || 0) : 0
 
+  // 👈 2. Extraction en temps réel de TOUS les feedbacks de ton téléphone
+  const allAppFeedbacks: FeedbackEntry[] = isClient 
+    ? JSON.parse(localStorage.getItem('chess-trainer:feedback') || '[]') 
+    : []
+
   const chapter = session[index]
   const finished = index >= session.length
+
+  // On isole l'historique de ce chapitre précis pour l'envoyer au simulateur
+  const currentChapterFeedbacks = chapter 
+    ? allAppFeedbacks.filter((f) => f.study === chapter.study && f.chapter === chapter.chapter)
+    : []
 
   // Moteur audio propre
   function playSound(type: 'move' | 'capture') {
@@ -41,7 +52,6 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     if (!soundEnabled) return
 
     try {
-      // 🎯 SÉCURITÉ EXTRA : On force 'coup.mp3' pour éliminer les bruits de capture intempestifs
       const audioUrl = type === 'capture' ? '/capture.mp3' : '/coup.mp3'
       const audio = new Audio(audioUrl)
       audio.volume = 0.5
@@ -99,7 +109,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   function handleChapterComplete(errors: number) {
     setChapterErrors(errors)
     setAwaitingFeedback(true)
-    playSound('move') // 🔊 Vrai bruit de pièce au dernier coup !
+    playSound('move') 
   }
 
   // Déclenché au clic sur les boutons d'évaluation
@@ -147,13 +157,12 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
         </p>
       </div>
 
-      {/* ♟️ LIAISON DYNAMIQUE POUR TOUS LES COUPS INTERMÉDIAIRES */}
       <ChessTrainingBoard 
         key={`${chapter.study}__${chapter.chapter}`} 
         chapter={chapter} 
         pgn={pgn} 
         onComplete={handleChapterComplete}
-        onMovePlayed={() => playSound('move')} // 🔊 Force chaque coup de l'arbre à faire un bruit normal
+        onMovePlayed={() => playSound('move')} 
       />
 
       {awaitingFeedback && (
@@ -167,20 +176,27 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
             )}
             &nbsp;?
           </p>
+          {/* 👈 3. MODIFICATION DE LA GRILLE DES BOUTONS AVEC LABELS DOUBLE LIGNE */}
           <div className="flex w-full flex-wrap justify-center gap-2">
-            {FEEDBACK_BUTTONS.map(({ level, className }) => (
-              <button
-                key={level}
-                type="button"
-                onClick={() => handleFeedback(level)}
-                className={cn(
-                  'rounded-md px-4 py-2 text-sm font-medium capitalize transition-colors',
-                  className,
-                )}
-              >
-                {level}
-              </button>
-            ))}
+            {FEEDBACK_BUTTONS.map(({ level, className }) => {
+              // On calcule dynamiquement la prédiction de temps pour ce bouton
+              const predictedInterval = simulateNextIntervalStr(currentChapterFeedbacks, level)
+
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => handleFeedback(level)}
+                  className={cn(
+                    'rounded-md px-4 py-2 text-xs sm:text-sm font-medium capitalize transition-colors flex flex-col items-center gap-0.5 min-w-[90px]',
+                    className,
+                  )}
+                >
+                  <span className="font-semibold">{level}</span>
+                  <span className="text-[10px] font-mono opacity-80 font-normal lowercase">({predictedInterval})</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

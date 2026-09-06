@@ -180,3 +180,54 @@ export function buildSession(
 
   return { session: sortedSession, summary }
 }
+/**
+ * Simule le prochain intervalle et renvoie le nombre de jours ou de mois
+ * pour un bouton de feedback spécifique avant qu'il ne soit cliqué.
+ */
+export function simulateNextIntervalStr(entries: FeedbackEntry[], level: FeedbackLevel): string {
+  const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date))
+  const latestIndex = sortedEntries.length - 1
+
+  // Cas 1 : Si la carte est toute neuve (première révision)
+  if (sortedEntries.length === 0) {
+    const idx = LEVELS.indexOf(level)
+    const days = FIRST_REVISION_DAYS[idx !== -1 ? idx : 2]
+    return `+${days}j`
+  }
+
+  // Cas 2 : Plusieurs révisions (On récupère l'ancien écart exact)
+  const latest = sortedEntries[latestIndex]
+  let lastAppliedInterval = 1
+
+  if (sortedEntries.length > 1) {
+    const previous = sortedEntries[latestIndex - 1]
+    const diffTime = Math.abs(parseDate(latest.date).getTime() - parseDate(previous.date).getTime())
+    lastAppliedInterval = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+  } else {
+    // Si une seule révision, l'intervalle précédent était l'intervalle initial
+    const idx = LEVELS.indexOf(latest.level)
+    lastAppliedInterval = FIRST_REVISION_DAYS[idx !== -1 ? idx : 2]
+  }
+
+  // Application du multiplicateur théorique du bouton simulé
+  let intervalFactor = 1.2
+  switch (level) {
+    case 'très facile': intervalFactor = 2.5; break
+    case 'facile':      intervalFactor = 1.8; break
+    case 'moyen':       intervalFactor = 1.1; break
+    case 'difficile':   intervalFactor = 0.5; break
+    case 'très difficile': intervalFactor = 0.1; break
+  }
+
+  let nextInterval = Math.round(lastAppliedInterval * intervalFactor)
+  if (nextInterval < 1) nextInterval = 1
+  const finalInterval = Math.min(nextInterval, 180) // Plafonné à 6 mois
+
+  // Formatage lisible du texte de prédiction
+  if (finalInterval >= 30) {
+    const mois = Math.round((finalInterval / 30) * 10) / 10
+    return `+${mois} mois`
+  }
+  return `+${finalInterval}j`
+}
+
