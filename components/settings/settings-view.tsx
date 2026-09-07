@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner' // 👈 1. Ajout de l'import manquant de ton projet
 
 interface SettingsViewProps {
   sessionCount: number
@@ -28,11 +29,10 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     }
   }, [])
 
-  // 2. 🛠️ LE CORRECTIF : Le chronomètre tourne désormais dans un useEffect sain
+  // 2. Le chronomètre tourne dans un useEffect sain
   useEffect(() => {
     if (!isScheduled || permission !== 'granted') return
 
-    // Vérification immédiate au démarrage
     const checkAndTrigger = () => {
       const hours = new Date().getHours()
       if (hours === 10 && sessionCount > 0) {
@@ -43,9 +43,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
       }
     }
 
-    // Lance la vérification toutes les heures
     const intervalId = setInterval(checkAndTrigger, 3600000)
-    
     return () => clearInterval(intervalId)
   }, [isScheduled, permission, sessionCount])
 
@@ -88,7 +86,8 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
   }
 
   // 🧪 Fonction de test pour vérifier la liaison matérielle de ton téléphone
-  const handleTestNotification = () => {
+  const handleTestNotification = (e: React.MouseEvent) => {
+    e.preventDefault() // Évite les faux clics de propagation sur mobile
     if (permission !== 'granted') {
       toast.error("Autorisez d'abord les notifications.")
       return
@@ -96,7 +95,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     triggerLocalNotification(
       "♟️ Test Réussi !", 
       sessionCount > 0 
-        ? `Ton téléphone fonctionne. Tu as ${sessionCount} variantes à réviser.` 
+        ? `Ton téléphone fonctionne. Tu avez ${sessionCount} variantes à réviser.` 
         : "Ton téléphone fonctionne. Aucun chapitre dû pour l'instant !"
     )
   }
@@ -105,7 +104,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     <div className="max-w-md mx-auto p-6 space-y-6 text-foreground">
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">Réglages de l'application</h1>
-        <p className="text-sm text-muted-foreground">Configurez vos preferences d'entraînement au quotidien.</p>
+        <p className="text-sm text-muted-foreground">Configurez vos préférences d'entraînement au quotidien.</p>
       </div>
 
       {/* BLOC 1 : EFFETS SONORES DE L'ÉCHIQUIER */}
@@ -169,20 +168,21 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
 
         {permission === 'denied' && (
           <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg">
-            Les notifications sont bloquées par votre navigateur. Réactivez-les dans les paramètres de votre site pour recevoir vos alerte.
+            Les notifications sont bloquées par votre navigateur. Réactivez-les dans les paramètres de votre site pour recevoir vos alertes.
           </p>
         )}
 
         {isScheduled && permission === 'granted' && (
-          <div className="space-y-3">
+          <div className="space-y-3 pt-2">
             <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded-lg">
               ✓ Rappel actif. L'application vous préviendra quotidiennement si vous avez des lignes en attente.
             </p>
-            {/* 🧪 Bouton de test matériel */}
+            {/* 🛠️ OPTIMISATION MOBILE : Zone cliquable isolée avec padding renforcé */}
             <button
               type="button"
+              active-touch="true"
               onClick={handleTestNotification}
-              className="w-full py-2 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-300 font-medium rounded-lg text-xs transition-colors"
+              className="w-full min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-900 text-zinc-300 font-bold rounded-xl text-xs transition-all active:scale-[0.98] select-none block text-center shadow-sm"
             >
               Tester l'envoi de la notification
             </button>
