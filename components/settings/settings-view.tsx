@@ -7,25 +7,47 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ sessionCount }: SettingsViewProps) {
+  const isClient = typeof window !== 'undefined'
+  
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isScheduled, setIsScheduled] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
 
+  // 1. Synchronisation initiale des états
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Synchronisation des notifications
       if ('Notification' in window) {
         setPermission(Notification.permission)
       }
       setIsScheduled(localStorage.getItem('notifications_active') === 'true')
       
-      // Synchronisation du réglage audio (actif par défaut si non configuré)
       const savedSound = localStorage.getItem('chess-trainer:sound-enabled')
       if (savedSound !== null) {
         setSoundEnabled(savedSound === 'true')
       }
     }
   }, [])
+
+  // 2. 🛠️ LE CORRECTIF : Le chronomètre tourne désormais dans un useEffect sain
+  useEffect(() => {
+    if (!isScheduled || permission !== 'granted') return
+
+    // Vérification immédiate au démarrage
+    const checkAndTrigger = () => {
+      const hours = new Date().getHours()
+      if (hours === 10 && sessionCount > 0) {
+        triggerLocalNotification(
+          "♟️ Entraînement disponible", 
+          `Vous avez ${sessionCount} chapitres d'ouvertures à réviser aujourd'hui !`
+        )
+      }
+    }
+
+    // Lance la vérification toutes les heures
+    const intervalId = setInterval(checkAndTrigger, 3600000)
+    
+    return () => clearInterval(intervalId)
+  }, [isScheduled, permission, sessionCount])
 
   // Demande l'autorisation de notification au système d'exploitation
   const requestPermission = async () => {
@@ -39,7 +61,8 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     
     if (res === 'granted') {
       triggerLocalNotification("Notifications activées !", "Vous recevrez des rappels pour vos ouvertures d'échecs.")
-      toggleScheduling(true)
+      setIsScheduled(true)
+      localStorage.setItem('notifications_active', 'true')
     }
   }
 
@@ -52,37 +75,37 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     }
   }
 
-  const toggleScheduling = (active: boolean) => {
-    setIsScheduled(active)
-    localStorage.setItem('notifications_active', active ? 'true' : 'false')
-    
-    if (active) {
-      const intervalId = setInterval(() => {
-        const hours = new Date().getHours()
-        if (hours === 10 && sessionCount > 0) {
-          triggerLocalNotification(
-            "♟️ Entraînement disponible", 
-            `Vous avez ${sessionCount} chapitres d'ouvertures à réviser aujourd'hui !`
-          )
-        }
-      }, 3600000)
-      
-      return () => clearInterval(intervalId)
-    }
+  const handleToggleSchedule = () => {
+    const nextState = !isScheduled
+    setIsScheduled(nextState)
+    localStorage.setItem('notifications_active', nextState ? 'true' : 'false')
   }
 
-  // Gère le basculement de l'état audio
   const toggleSound = () => {
     const nextState = !soundEnabled
     setSoundEnabled(nextState)
     localStorage.setItem('chess-trainer:sound-enabled', nextState.toString())
   }
 
+  // 🧪 Fonction de test pour vérifier la liaison matérielle de ton téléphone
+  const handleTestNotification = () => {
+    if (permission !== 'granted') {
+      toast.error("Autorisez d'abord les notifications.")
+      return
+    }
+    triggerLocalNotification(
+      "♟️ Test Réussi !", 
+      sessionCount > 0 
+        ? `Ton téléphone fonctionne. Tu as ${sessionCount} variantes à réviser.` 
+        : "Ton téléphone fonctionne. Aucun chapitre dû pour l'instant !"
+    )
+  }
+
   return (
     <div className="max-w-md mx-auto p-6 space-y-6 text-foreground">
       <div>
         <h1 className="text-2xl font-bold tracking-tight mb-2">Réglages de l'application</h1>
-        <p className="text-sm text-muted-foreground">Configurez vos préférences d'entraînement au quotidien.</p>
+        <p className="text-sm text-muted-foreground">Configurez vos preferences d'entraînement au quotidien.</p>
       </div>
 
       {/* BLOC 1 : EFFETS SONORES DE L'ÉCHIQUIER */}
@@ -130,7 +153,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
             </button>
           ) : (
             <button
-              onClick={() => toggleScheduling(!isScheduled)}
+              onClick={handleToggleSchedule}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 isScheduled ? 'bg-primary' : 'bg-muted'
               }`}
@@ -151,9 +174,19 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         )}
 
         {isScheduled && permission === 'granted' && (
-          <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded-lg">
-            ✓ Rappel actif. L'application vous préviendra quotidiennement si vous avez des lignes en attente.
-          </p>
+          <div className="space-y-3">
+            <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded-lg">
+              ✓ Rappel actif. L'application vous préviendra quotidiennement si vous avez des lignes en attente.
+            </p>
+            {/* 🧪 Bouton de test matériel */}
+            <button
+              type="button"
+              onClick={handleTestNotification}
+              className="w-full py-2 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-300 font-medium rounded-lg text-xs transition-colors"
+            >
+              Tester l'envoi de la notification
+            </button>
+          </div>
         )}
       </div>
     </div>
