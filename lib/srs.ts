@@ -28,58 +28,18 @@ function startOfDay(date: Date): Date {
 /**
  * ALGORITHME ANKI AMORTI : Calcule l'allongement de l'intervalle sans reset brutal
  */
-export function computeDueDate(entries: FeedbackEntry[], today: Date): Date {
-  if (entries.length === 0) return startOfDay(today)
-
-  // 1. Tri chronologique de l'historique
-  const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date))
-  const latestIndex = sortedEntries.length - 1
-  const latest = sortedEntries[latestIndex]
-
-  // 2. Si c'est la toute première révision, on prend l'intervalle de base fixe
-  if (sortedEntries.length === 1) {
-    const idx = levelIndex(latest.level)
-    const initialDays = FIRST_REVISION_DAYS[idx !== -1 ? idx : 2]
-    return addDays(parseDate(latest.date), initialDays)
-  }
-
-  // 3. SI HISTORIQUE EXISTANT : On calcule l'écart réel appliqué lors de l'avant-dernière révision
-  const previous = sortedEntries[latestIndex - 1]
-  const diffTime = Math.abs(parseDate(latest.date).getTime() - parseDate(previous.date).getTime())
-  const lastAppliedInterval = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
-
-  // 4. On détermine le multiplicateur d'amorti basé UNIQUEMENT sur ton bouton de feedback
-  let intervalFactor = 1.2 // Valeur par défaut pour 'moyen'
-  
-  switch (latest.level) {
-    case 'très facile':
-      intervalFactor = 2.5 // Grand saut
-      break
-    case 'facile':
-      intervalFactor = 1.8 // Saut normal
-      break
-    case 'moyen':
-      intervalFactor = 1.1 // On ne redescend pas, on stabilise et augmente très légèrement
-      break
-    case 'difficile':
-      intervalFactor = 0.5 // On réduit l'écart de moitié pour réviser plus tôt
-      break
-    case 'très difficile':
-      intervalFactor = 0.1 // Oubli total, retour proche de zéro
-      break
-  }
-
-  // 5. Calcul du nouvel intervalle basé sur le précédent
+  // Calcul du nouvel intervalle basé sur le précédent
   let nextInterval = Math.round(lastAppliedInterval * intervalFactor)
 
-  // Sécurité pour éviter les blocages (minimum 1 jour)
-  if (nextInterval < 1) nextInterval = 1
-
-  // Plafond maximum Anki (6 mois) pour ne pas perdre définitivement une ligne de vue
-  const finalInterval = Math.min(nextInterval, 180)
-
-  return addDays(parseDate(latest.date), finalInterval)
-}
+  // 🛠️ LA SÉCURITÉ ANTI-RETOUR :
+  // Si on vient de réviser la carte aujourd'hui (lastAppliedInterval === 0 ou 1) :
+  // On force des planchers stricts selon ton bouton pour chasser la carte au moins à demain ou plus tard !
+  if (nextInterval < 1) {
+    if (latest.level === 'très facile') nextInterval = 4; // Éloigné à 4 jours minimum
+    else if (latest.level === 'facile') nextInterval = 2; // Éloigné à 2 jours minimum
+    else if (latest.level === 'moyen') nextInterval = 1;  // À demain minimum
+    else nextInterval = 1; // Difficile / Très difficile revient à demain
+  }
 
 export function isChapterDue(
   allFeedback: FeedbackEntry[],
