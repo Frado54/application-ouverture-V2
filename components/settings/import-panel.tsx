@@ -267,10 +267,34 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             >
               Sauvegarder et Initialiser mon Répertoire
             </Button>
+
+            {/* 🛠️ RECONSTRUCTION DE TA GRILLE DE SYNCHRONISATION JSON MANQUANTE */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              {/* 3. BOUTON EXPORTER (.JSON) */}
+              <Button
+                type="button"
+                onClick={handleExport}
+                className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors whitespace-normal"
+              >
+                <Download className="size-4 shrink-0" />
+                <span>Exporter (.json)</span>
+              </Button>
+
+              {/* 4. BOUTON IMPORTER (.JSON) AVEC INPUT INVISIBLE LINKÉ */}
+              <label className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors cursor-pointer text-center select-none active:scale-[0.98]">
+                <Upload className="size-4 shrink-0" />
+                <span>Importer (.json)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportJson}
+                  className="hidden"
+                />
+              </label>
             </div>
+          </div>
         </Field>
       </FieldGroup>
     </div>
   )
 }
-
