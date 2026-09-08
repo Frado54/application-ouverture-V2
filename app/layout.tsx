@@ -4,8 +4,7 @@ import { Fraunces, IBM_Plex_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-// Two families total: Fraunces for headings (font-serif), IBM Plex Mono for
-// everything else (font-sans / font-mono) to match the "chess database" feel.
+// Initialisation de tes deux familles de polices d'origines
 const fraunces = Fraunces({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-fraunces' })
 const plexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-plex-mono' })
 
@@ -51,6 +50,25 @@ export default function RootLayout({
         {children}
         <Toaster theme="dark" />
         {process.env.NODE_ENV === 'production' && <Analytics />}
+
+        {/* 🚀 SCRIPTER SUPRÊME : Enregistrement sécurisé du Service Worker direct dans le HTML */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(reg) {
+                      console.log('♟️ Chess-Trainer SW enregistré avec succès ! Portée :', reg.scope);
+                    })
+                    .catch(function(err) {
+                      console.error('❌ Échec de l’enregistrement du Service Worker :', err);
+                    });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )

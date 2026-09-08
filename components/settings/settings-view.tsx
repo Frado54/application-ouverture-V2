@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner' // 👈 1. Ajout de l'import manquant de ton projet
+import { toast } from 'sonner'
 
 interface SettingsViewProps {
   sessionCount: number
@@ -64,8 +64,29 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     }
   }
 
-  const triggerLocalNotification = (title: string, body: string) => {
-    if (Notification.permission === 'granted') {
+  // 🚀 LA FONCTION CORRIGÉE : Compatibilité Service Worker pour ton téléphone
+  const triggerLocalNotification = async (title: string, body: string) => {
+    if (Notification.permission !== 'granted') return
+
+    // 📱 Sur mobile : On tente d'utiliser le Service Worker s'il est prêt
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        if (registration) {
+          registration.showNotification(title, {
+            body,
+            icon: '/chess-icon.png',
+            badge: '/chess-icon.png',
+          })
+          return
+        }
+      } catch (error) {
+        console.warn("Le Service Worker n'est pas encore prêt, secours classique :", error)
+      }
+    }
+
+    // 💻 Sur ordinateur : Secours classique si pas de Service Worker actif
+    if ('Notification' in window) {
       new Notification(title, {
         body,
         icon: '/chess-icon.png'
@@ -85,7 +106,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     localStorage.setItem('chess-trainer:sound-enabled', nextState.toString())
   }
 
-  // 🧪 Fonction de test pour vérifier la liaison matérielle de ton téléphone
+  // Fonction de test pour vérifier la liaison matérielle de ton téléphone
   const handleTestNotification = (e: React.MouseEvent) => {
     e.preventDefault() // Évite les faux clics de propagation sur mobile
     if (permission !== 'granted') {
@@ -177,7 +198,6 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
             <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded-lg">
               ✓ Rappel actif. L'application vous préviendra quotidiennement si vous avez des lignes en attente.
             </p>
-            {/* 🛠️ OPTIMISATION MOBILE : Zone cliquable isolée avec padding renforcé */}
             <button
               type="button"
               active-touch="true"
