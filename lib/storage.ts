@@ -112,9 +112,6 @@ export function exportLocalStorageBackup() {
     localStorage: backup
   }
 }
- {
-  return typeof value === 'object' && value !== null
-}
 
 function restoreDump(dump: Record<string, string | null>): void {
   if (typeof window === 'undefined') return
