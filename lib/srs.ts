@@ -116,7 +116,9 @@ export function isChapterDue(
   if (entries.length === 0) return true
 
   const dueDate = computeDueDate(entries, today)
-  return dueDate.getTime() <= startOfDay(today).getTime()
+  // 🛠️ CORRECTIF : On compare uniquement les jours (Minuit). 
+  // Si le chapitre doit revenir aujourd'hui, il est dû dès le matin à 00h01 !
+  return startOfDay(dueDate).getTime() <= startOfDay(today).getTime()
 }
 
 export function simulateNextIntervalStr(entries: FeedbackEntry[], level: FeedbackLevel): string {
