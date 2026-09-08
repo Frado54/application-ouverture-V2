@@ -94,26 +94,25 @@ export type RestoredRepertoire = {
 }
 
 /** Snapshot of revision / feedback / PGN stored in localStorage, for JSON export. */
-export function exportLocalStorageBackup(): RepertoireBackup {
-  const raw = loadRawImportText()
-  const dump: Record<string, string | null> = {}
-  if (typeof window !== 'undefined') {
-    for (const key of Object.values(KEYS)) {
-      dump[key] = window.localStorage.getItem(key)
+export function exportLocalStorageBackup() {
+  const backup: Record<string, string> = {}
+  
+  if (typeof window === 'undefined') return { localStorage: backup }
+
+  // 🚀 ASPIRATION TOTALE : On prend absolument TOUTES les clés du LocalStorage
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key) {
+      backup[key] = localStorage.getItem(key) || ''
     }
   }
 
   return {
     exportedAt: new Date().toISOString(),
-    revision: raw.revision,
-    feedback: raw.feedback,
-    pgn: raw.pgn,
-    repertoire: loadStoredRepertoire(),
-    localStorage: dump,
+    localStorage: backup
   }
 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
+ {
   return typeof value === 'object' && value !== null
 }
 
