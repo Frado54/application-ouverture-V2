@@ -201,8 +201,28 @@ export function buildSession(
       }
     }
 
+    // 🛠️ FIX DES COMPTEURS INITIALS (Fige le nombre du matin)
+    let initialDue = dueInBlock.length
+    if (typeof window !== 'undefined') {
+      const savedInitial = localStorage.getItem(`chess-trainer:initial-due-${block.priority}`)
+      if (savedInitial !== null) {
+        // On garde la valeur enregistrée au début du jour (ou plus si ajout entre temps)
+        initialDue = Math.max(dueInBlock.length, Number(savedInitial))
+      } else if (dueInBlock.length > 0) {
+        // C'est le premier calcul du jour, on fige le total dû du matin
+        localStorage.setItem(`chess-trainer:initial-due-${block.priority}`, dueInBlock.length.toString())
+      }
+    }
+
     const isActive = dueInBlock.length > 0
-    summary.push({ priority: block.priority, dueCount: dueInBlock.length, totalCount, isActive })
+    // On ajoute 'initialDueCount' dans les données envoyées à l'affichage
+    summary.push({ 
+      priority: block.priority, 
+      dueCount: dueInBlock.length, 
+      totalCount, 
+      initialDueCount: initialDue, 
+      isActive 
+    })
 
     if (dueInBlock.length > 0) {
       allDueSessions = [...allDueSessions, ...dueInBlock]
@@ -248,3 +268,7 @@ export function buildSession(
 
   return { session: finalSession, summary }
 }
+
+// 🛠️ ÉTAPE EXTRA : Tu as une ancienne déclaration de "export interface PriorityBlockSummary" 
+// située plus haut dans ton fichier (juste au-dessus de la fonction buildSession). 
+// Trouve-la et ajoute-lui simplement la ligne "initialDueCount: number" pour que tout soit synchrone !

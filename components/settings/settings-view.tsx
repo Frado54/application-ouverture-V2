@@ -14,6 +14,7 @@ const SESSION_OPTIONS = [
   { value: '40', label: '40 chapitres' },
   { value: '50', label: '50 chapitres' },
   { value: '75', label: '75 chapitres' },
+  { value: '100', label: '100 chapitres' },
   { value: '0', label: 'Aucune limite (Tout faire)' },
 ]
 
