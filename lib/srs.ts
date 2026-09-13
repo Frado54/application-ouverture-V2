@@ -248,5 +248,3 @@ export function buildSession(
 
   return { session: finalSession, summary }
 }
-
-}
