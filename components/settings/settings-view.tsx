@@ -7,12 +7,23 @@ interface SettingsViewProps {
   sessionCount: number
 }
 
+// Les différentes options de tailles disponibles
+const SESSION_OPTIONS = [
+  { value: '20', label: '20 chapitres' },
+  { value: '30', label: '30 chapitres' },
+  { value: '40', label: '40 chapitres' },
+  { value: '50', label: '50 chapitres' },
+  { value: '75', label: '75 chapitres' },
+  { value: '0', label: 'Aucune limite (Tout faire)' },
+]
+
 export function SettingsView({ sessionCount }: SettingsViewProps) {
   const isClient = typeof window !== 'undefined'
   
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isScheduled, setIsScheduled] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [sessionMax, setSessionMax] = useState('30') // 30 par défaut
 
   // 1. Synchronisation initiale des états
   useEffect(() => {
@@ -26,10 +37,16 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
       if (savedSound !== null) {
         setSoundEnabled(savedSound === 'true')
       }
+
+      // 🛠️ Récupération de la limite de session
+      const savedMax = localStorage.getItem('chess-trainer:session-max')
+      if (savedMax !== null) {
+        setSessionMax(savedMax)
+      }
     }
   }, [])
 
-  // 2. Le chronomètre tourne dans un useEffect sain
+  // 2. Le chronomètre des rappels
   useEffect(() => {
     if (!isScheduled || permission !== 'granted') return
 
@@ -47,7 +64,6 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     return () => clearInterval(intervalId)
   }, [isScheduled, permission, sessionCount])
 
-  // Demande l'autorisation de notification au système d'exploitation
   const requestPermission = async () => {
     if (!('Notification' in window)) {
       alert("Ce navigateur ne prend pas en charge les notifications de bureau.")
@@ -64,11 +80,9 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     }
   }
 
-  // 🚀 LA FONCTION CORRIGÉE : Compatibilité Service Worker pour ton téléphone
   const triggerLocalNotification = async (title: string, body: string) => {
     if (Notification.permission !== 'granted') return
 
-    // 📱 Sur mobile : On tente d'utiliser le Service Worker s'il est prêt
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.ready
@@ -81,16 +95,12 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
           return
         }
       } catch (error) {
-        console.warn("Le Service Worker n'est pas encore prêt, secours classique :", error)
+        console.warn("Service Worker pas prêt, secours classique :", error)
       }
     }
 
-    // 💻 Sur ordinateur : Secours classique si pas de Service Worker actif
     if ('Notification' in window) {
-      new Notification(title, {
-        body,
-        icon: '/chess-icon.png'
-      })
+      new Notification(title, { body, icon: '/chess-icon.png' })
     }
   }
 
@@ -106,9 +116,15 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     localStorage.setItem('chess-trainer:sound-enabled', nextState.toString())
   }
 
-  // Fonction de test pour vérifier la liaison matérielle de ton téléphone
+  // 🛠️ Sauvegarde du choix de la taille max
+  const handleSessionMaxChange = (value: string) => {
+    setSessionMax(value)
+    localStorage.setItem('chess-trainer:session-max', value)
+    toast.success(`Limite configurée : ${value === '0' ? 'Aucune limite' : value + ' chapitres'}`)
+  }
+
   const handleTestNotification = (e: React.MouseEvent) => {
-    e.preventDefault() // Évite les faux clics de propagation sur mobile
+    e.preventDefault()
     if (permission !== 'granted') {
       toast.error("Autorisez d'abord les notifications.")
       return
@@ -116,7 +132,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     triggerLocalNotification(
       "♟️ Test Réussi !", 
       sessionCount > 0 
-        ? `Ton téléphone fonctionne. Tu avez ${sessionCount} variantes à réviser.` 
+        ? `Ton téléphone fonctionne. Tu as ${sessionCount} variantes à réviser.` 
         : "Ton téléphone fonctionne. Aucun chapitre dû pour l'instant !"
     )
   }
@@ -128,7 +144,34 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         <p className="text-sm text-muted-foreground">Configurez vos préférences d'entraînement au quotidien.</p>
       </div>
 
-      {/* BLOC 1 : EFFETS SONORES DE L'ÉCHIQUIER */}
+      {/* 🛠️ NOUVEAU BLOC : TAILLE MAXIMALE DE LA SESSION */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div>
+          <h3 className="font-semibold text-base">Structure de l'entraînement</h3>
+          <p className="text-xs text-muted-foreground">
+            Nombre maximal de chapitres chargés dans une même session de révision.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-2">
+          {SESSION_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleSessionMaxChange(opt.value)}
+              className={`py-2 px-3 text-xs font-medium rounded-lg border transition-all text-center ${
+                sessionMax === opt.value
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm font-semibold'
+                  : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* BLOC : EFFETS SONORES */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -154,7 +197,7 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         </div>
       </div>
 
-      {/* BLOC 2 : RAPPELS QUOTIDIENS */}
+      {/* BLOC : RAPPELS QUOTIDIENS */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>

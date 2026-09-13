@@ -232,5 +232,21 @@ export function buildSession(
     return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
   })
 
-  return { session: sortedSession, summary }
+  // 1. Lire la préférence utilisateur (uniquement côté client)
+  let maxChapters = 30 // Sécurité par défaut
+  if (typeof window !== 'undefined') {
+    const savedMax = localStorage.getItem('chess-trainer:session-max')
+    if (savedMax !== null) {
+      maxChapters = Number(savedMax)
+    }
+  }
+
+  // 2. Découper la session si une limite numérique est définie (supérieure à 0)
+  const finalSession = maxChapters > 0 
+    ? sortedSession.slice(0, maxChapters) 
+    : sortedSession
+
+  return { session: finalSession, summary }
+}
+
 }
