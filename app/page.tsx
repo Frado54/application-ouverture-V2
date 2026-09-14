@@ -61,7 +61,7 @@ export default function Page() {
     return 0
   })
 
-  // 👇 NOUVEAUX COMPTEURS EXCLUSIFS À L'APPLICATION
+  // NOUVEAUX COMPTEURS EXCLUSIFS À L'APPLICATION
   const [appChapters, setAppChapters] = useState<number>(() => {
     if (isClient) return Number(localStorage.getItem('app_total_chapters') || 0)
     return 0
@@ -80,7 +80,29 @@ export default function Page() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const { session } = useMemo(() => buildSession(revisionBlocks, feedback), [revisionBlocks, feedback])
+  // 🛠️ NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
+  useEffect(() => {
+    if (isClient) {
+      const aujourdhuiStr = new Date().toISOString().slice(0, 10)
+      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+
+      if (dateDernierNettoyage !== aujourdhuiStr) {
+        // C'est un nouveau jour : on efface les mémoires initiales de la veille pour recalculer à blanc
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+        localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
+        localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
+        localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
+        localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
+        
+        localStorage.setItem('chess-trainer:last-clear-date', aujourdhuiStr)
+      }
+    }
+  }, [isClient])
+
+  // 🛠️ FIX DE L'EXTRACTION : On récupère à la fois 'session' ET 'summary' de l'algorithme
+  const { session, summary } = useMemo(() => {
+    return buildSession(revisionBlocks, feedback)
+  }, [revisionBlocks, feedback])
 
   // PERSISTANCE DES COMPTEURS D'APPLICATION
   useEffect(() => { if (mounted) localStorage.setItem('app_total_chapters', appChapters.toString()) }, [appChapters, mounted])
@@ -97,28 +119,22 @@ export default function Page() {
     setActiveSession(session)
     setTotalSessionLength(session.length) 
     setCompletedCount(0)                  
-    setChapterStartTime(Date.now()) // Démarre le chrono du tout premier chapitre
+    setChapterStartTime(Date.now())
     setView('training')
   }
 
   function handleAddFeedback(entry: FeedbackEntry) {
-    // 1. Calcul du temps passé sur ce chapitre précis
     const endTime = Date.now()
     const secondsElapsed = Math.round((endTime - chapterStartTime) / 1000)
-    
-    // Sécurité AFK : On plafonne à 3 minutes (180s) max par chapitre
     const safeSeconds = Math.min(secondsElapsed, 180)
 
-    // 2. Mise à jour des statistiques cumulées de l'application
     setAppChapters((prev) => prev + 1)
     setAppErrors((prev) => prev + (entry.errors || 0))
     setAppTime((prev) => prev + safeSeconds)
 
-    // 3. Suite de la logique SRS standard
     setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
     setCompletedCount((prev) => prev + 1)
     
-    // Le chapitre suivant commence MAINTENANT
     setChapterStartTime(Date.now())
     setActiveSession((prev) => prev.slice(1))
   }
@@ -143,8 +159,15 @@ export default function Page() {
     saveRawImportText(data.rawText)
     setTotalSessionLength(0)
     setCompletedCount(0)
-    
-    // Note : On ne réinitialise PAS les compteurs globaux de l'application lors d'un import de fichier
+
+    // Lors d'un nouvel import complet de fichier JSON, on nettoie les verrous de totaux pour recalculer proprement
+    if (isClient) {
+      localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+      localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
+      localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
+      localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
+      localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
+    }
   }
 
   if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
@@ -155,7 +178,8 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background pb-24">
-      {activeTab === 'aujourdhui' && <DashboardView session={session} onStart={handleStart} />}
+      {/* 🛠️ PASSAGE DE COMPTEURS GLOBAUX : On transmet la structure 'summary' au tableau de bord */}
+      {activeTab === 'aujourdhui' && <DashboardView session={session} summary={summary} onStart={handleStart} />}
       
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">
@@ -167,7 +191,6 @@ export default function Page() {
         </div>
       )}
 
-      {/* 👇 ON PASSE LES NOUVELLES INFOS CUMULÉES À L'ONGLET STATS */}
       {activeTab === 'stats' && (
         <StatsView 
           totalChapters={appChapters} 

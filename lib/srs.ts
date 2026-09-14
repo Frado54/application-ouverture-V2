@@ -183,92 +183,78 @@ export function buildSession(
   const summary: PriorityBlockSummary[] = []
   let allDueSessions: DueChapter[] = []
 
-  for (const block of blocks) {
-    const dueInBlock: DueChapter[] = []
-    let totalCount = 0
-
-    for (const study of block.studies) {
-      for (const chapter of study.chapters) {
-        totalCount++
-        if (isChapterDue(feedback, study.name, chapter, today)) {
-          dueInBlock.push({
-            study: study.name,
-            chapter,
-            priority: block.priority,
-            color: getPieceColor(study.name),
-          })
+      // 🛠️ VERROUILLAGE DU SCORE INITIAL : Le total du matin ne peut jamais s'effondrer
+      let initialDue = dueInBlock.length
+      if (typeof window !== 'undefined') {
+        const storageKey = `chess-trainer:initial-due-${block.priority}`
+        const savedInitial = localStorage.getItem(storageKey)
+        
+        if (savedInitial !== null) {
+          const numSaved = Number(savedInitial)
+          // RÈGLE D'OR : On garde la valeur maximale pour ne jamais oublier les chapitres faits
+          initialDue = Math.max(dueInBlock.length, numSaved)
+          
+          // Si le nombre dû réel augmente (ex: ajout de variantes), on ajuste le stockage
+          if (dueInBlock.length > numSaved) {
+            localStorage.setItem(storageKey, dueInBlock.length.toString())
+          }
+        } else if (dueInBlock.length > 0) {
+          // Premier calcul du matin
+          localStorage.setItem(storageKey, dueInBlock.length.toString())
         }
       }
-    }
-
-    // 🛠️ FIX DES COMPTEURS INITIALS (Fige le nombre du matin)
-    let initialDue = dueInBlock.length
-    if (typeof window !== 'undefined') {
-      const savedInitial = localStorage.getItem(`chess-trainer:initial-due-${block.priority}`)
-      if (savedInitial !== null) {
-        // On garde la valeur enregistrée au début du jour (ou plus si ajout entre temps)
-        initialDue = Math.max(dueInBlock.length, Number(savedInitial))
-      } else if (dueInBlock.length > 0) {
-        // C'est le premier calcul du jour, on fige le total dû du matin
-        localStorage.setItem(`chess-trainer:initial-due-${block.priority}`, dueInBlock.length.toString())
+  
+      const isActive = dueInBlock.length > 0
+      summary.push({ 
+        priority: block.priority, 
+        dueCount: dueInBlock.length, 
+        totalCount, 
+        initialDueCount: initialDue, 
+        isActive 
+      })
+  
+      if (dueInBlock.length > 0) {
+        allDueSessions = [...allDueSessions, ...dueInBlock]
       }
     }
-
-    const isActive = dueInBlock.length > 0
-    // On ajoute 'initialDueCount' dans les données envoyées à l'affichage
-    summary.push({ 
-      priority: block.priority, 
-      dueCount: dueInBlock.length, 
-      totalCount, 
-      initialDueCount: initialDue, 
-      isActive 
+  
+    // Tri stable par poids de priorité
+    const sortedSession = [...allDueSessions].sort((a, b) => {
+      const getPoids = (priorityString: string): number => {
+        const p = priorityString.toUpperCase()
+        if (p.includes('ABSOLUE')) return 5
+        if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
+        if (p.includes('MOYENNE')) return 3
+        if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
+        if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
+        return 0
+      }
+  
+      const poidsA = getPoids(a.priority)
+      const poidsB = getPoids(b.priority)
+  
+      if (poidsA !== poidsB) return poidsB - poidsA
+      if (a.study !== b.study) return a.study.localeCompare(b.study)
+  
+      const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
+      const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+      
+      return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
     })
-
-    if (dueInBlock.length > 0) {
-      allDueSessions = [...allDueSessions, ...dueInBlock]
+  
+    // Récupération de la limite de session
+    let maxChapters = 30
+    if (typeof window !== 'undefined') {
+      const savedMax = localStorage.getItem('chess-trainer:session-max')
+      if (savedMax !== null) {
+        maxChapters = Number(savedMax)
+      }
     }
+  
+    const finalSession = maxChapters > 0 
+      ? sortedSession.slice(0, maxChapters) 
+      : sortedSession
+  
+    return { session: finalSession, summary }
   }
-
-  const sortedSession = [...allDueSessions].sort((a, b) => {
-    const getPoids = (priorityString: string): number => {
-      const p = priorityString.toUpperCase()
-      if (p.includes('ABSOLUE')) return 5
-      if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
-      if (p.includes('MOYENNE')) return 3
-      if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
-      if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
-      return 0
-    }
-
-    const poidsA = getPoids(a.priority)
-    const poidsB = getPoids(b.priority)
-
-    if (poidsA !== poidsB) return poidsB - poidsA
-    if (a.study !== b.study) return a.study.localeCompare(b.study)
-
-    const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
-    const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
-    
-    return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
-  })
-
-  // 1. Lire la préférence utilisateur (uniquement côté client)
-  let maxChapters = 30 // Sécurité par défaut
-  if (typeof window !== 'undefined') {
-    const savedMax = localStorage.getItem('chess-trainer:session-max')
-    if (savedMax !== null) {
-      maxChapters = Number(savedMax)
-    }
-  }
-
-  // 2. Découper la session si une limite numérique est définie (supérieure à 0)
-  const finalSession = maxChapters > 0 
-    ? sortedSession.slice(0, maxChapters) 
-    : sortedSession
-
-  return { session: finalSession, summary }
-}
-
-// 🛠️ ÉTAPE EXTRA : Tu as une ancienne déclaration de "export interface PriorityBlockSummary" 
-// située plus haut dans ton fichier (juste au-dessus de la fonction buildSession). 
-// Trouve-la et ajoute-lui simplement la ligne "initialDueCount: number" pour que tout soit synchrone !
+  
