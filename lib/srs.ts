@@ -1,4 +1,4 @@
-import type { DueChapter, FeedbackEntry, FeedbackLevel, RevisionPriorityBlock } from './types'
+import type { DueChapter, FeedbackEntry, FeedbackLevel, RevisionPriorityBlock, PriorityBlockSummary } from './types'
 import { getPieceColor } from './mock-data'
 
 export const LEVELS: FeedbackLevel[] = ['très difficile', 'difficile', 'moyen', 'facile', 'très facile']
@@ -33,24 +33,20 @@ function startOfDay(date: Date): Date {
 export function computeDueDate(entries: FeedbackEntry[], today: Date): Date {
   if (entries.length === 0) return startOfDay(today)
 
-  // 1. Tri chronologique de l'historique
   const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date))
   const latestIndex = sortedEntries.length - 1
   const latest = sortedEntries[latestIndex]
 
-  // 2. Si c'est la toute première révision, on prend l'intervalle de base fixe
   if (sortedEntries.length === 1) {
     const idx = levelIndex(latest.level)
     const initialDays = FIRST_REVISION_DAYS[idx !== -1 ? idx : 2]
     return addDays(parseDate(latest.date), initialDays)
   }
 
-  // 3. SI HISTORIQUE EXISTANT : On calcule l'écart réel appliqué lors de l'avant-dernière révision
   const previous = sortedEntries[latestIndex - 1]
   const diffTime = Math.abs(parseDate(latest.date).getTime() - parseDate(previous.date).getTime())
   const lastAppliedInterval = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
 
-  // 4. On détermine le multiplicateur d'amorti basé sur ton bouton de feedback
   let intervalFactor = 1.2
   
   switch (latest.level) {
@@ -71,22 +67,16 @@ export function computeDueDate(entries: FeedbackEntry[], today: Date): Date {
       break
   }
 
-  // 5. Calcul du nouvel intervalle basé sur le précédent
   let nextInterval = Math.round(lastAppliedInterval * intervalFactor)
 
-  // 🛠️ LA SÉCURITÉ ANTI-RETOUR (Placée APRÈS la déclaration de lastAppliedInterval)
-  // Si on vient de réviser la carte aujourd'hui ou hier (lastAppliedInterval proche de 0) :
-  // On force des planchers stricts selon ton bouton pour chasser la variante plus tard !
   if (nextInterval < 1 || lastAppliedInterval <= 1) {
-    if (latest.level === 'très facile') nextInterval = 4       // Bloqué à 4 jours min
-    else if (latest.level === 'facile') nextInterval = 2       // Bloqué à 2 jours min
-    else if (latest.level === 'moyen') nextInterval = 1        // Bloqué à demain min
-    else nextInterval = 1                                      // Difficile revient demain
+    if (latest.level === 'très facile') nextInterval = 4
+    else if (latest.level === 'facile') nextInterval = 2
+    else if (latest.level === 'moyen') nextInterval = 1
+    else nextInterval = 1
   }
 
-  // Plafond maximum Anki (6 mois)
   const finalInterval = Math.min(nextInterval, 180)
-
   return addDays(parseDate(latest.date), finalInterval)
 }
 
@@ -96,7 +86,6 @@ export function isChapterDue(
   chapter: string,
   today: Date = new Date(),
 ): boolean {
-  // Traducteur étanche et strict pour éviter le mélange Blanc / Noir et les anciens noms courts
   const entries = allFeedback.filter((f) => {
     const memeChapitre = f.chapter === chapter
     if (!memeChapitre) return false
@@ -116,8 +105,6 @@ export function isChapterDue(
   if (entries.length === 0) return true
 
   const dueDate = computeDueDate(entries, today)
-  // 🛠️ CORRECTIF : On compare uniquement les jours (Minuit). 
-  // Si le chapitre doit revenir aujourd'hui, il est dû dès le matin à 00h01 !
   return startOfDay(dueDate).getTime() <= startOfDay(today).getTime()
 }
 
@@ -168,13 +155,6 @@ export function simulateNextIntervalStr(entries: FeedbackEntry[], level: Feedbac
   return `+${finalInterval}j`
 }
 
-export interface PriorityBlockSummary {
-  priority: string
-  dueCount: number
-  totalCount: number
-  isActive: boolean
-}
-
 export function buildSession(
   blocks: RevisionPriorityBlock[],
   feedback: FeedbackEntry[],
@@ -183,78 +163,91 @@ export function buildSession(
   const summary: PriorityBlockSummary[] = []
   let allDueSessions: DueChapter[] = []
 
-      // 🛠️ VERROUILLAGE DU SCORE INITIAL : Le total du matin ne peut jamais s'effondrer
-      let initialDue = dueInBlock.length
-      if (typeof window !== 'undefined') {
-        const storageKey = `chess-trainer:initial-due-${block.priority}`
-        const savedInitial = localStorage.getItem(storageKey)
-        
-        if (savedInitial !== null) {
-          const numSaved = Number(savedInitial)
-          // RÈGLE D'OR : On garde la valeur maximale pour ne jamais oublier les chapitres faits
-          initialDue = Math.max(dueInBlock.length, numSaved)
-          
-          // Si le nombre dû réel augmente (ex: ajout de variantes), on ajuste le stockage
-          if (dueInBlock.length > numSaved) {
-            localStorage.setItem(storageKey, dueInBlock.length.toString())
-          }
-        } else if (dueInBlock.length > 0) {
-          // Premier calcul du matin
-          localStorage.setItem(storageKey, dueInBlock.length.toString())
+  for (const block of blocks) {
+    const dueInBlock: DueChapter[] = []
+    let totalCount = 0
+
+    for (const study of block.studies) {
+      for (const chapter of study.chapters) {
+        totalCount++
+        if (isChapterDue(feedback, study.name, chapter, today)) {
+          dueInBlock.push({
+            study: study.name,
+            chapter,
+            priority: block.priority,
+            color: getPieceColor(study.name),
+          })
         }
       }
-  
-      const isActive = dueInBlock.length > 0
-      summary.push({ 
-        priority: block.priority, 
-        dueCount: dueInBlock.length, 
-        totalCount, 
-        initialDueCount: initialDue, 
-        isActive 
-      })
-  
-      if (dueInBlock.length > 0) {
-        allDueSessions = [...allDueSessions, ...dueInBlock]
-      }
     }
-  
-    // Tri stable par poids de priorité
-    const sortedSession = [...allDueSessions].sort((a, b) => {
-      const getPoids = (priorityString: string): number => {
-        const p = priorityString.toUpperCase()
-        if (p.includes('ABSOLUE')) return 5
-        if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
-        if (p.includes('MOYENNE')) return 3
-        if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
-        if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
-        return 0
-      }
-  
-      const poidsA = getPoids(a.priority)
-      const poidsB = getPoids(b.priority)
-  
-      if (poidsA !== poidsB) return poidsB - poidsA
-      if (a.study !== b.study) return a.study.localeCompare(b.study)
-  
-      const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
-      const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
-      
-      return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
-    })
-  
-    // Récupération de la limite de session
-    let maxChapters = 30
+
+    // 🛠️ VERROUILLAGE UNIQUE DU SCORE DE DÉBUT DE JOURNÉE
+    let initialDue = dueInBlock.length
     if (typeof window !== 'undefined') {
-      const savedMax = localStorage.getItem('chess-trainer:session-max')
-      if (savedMax !== null) {
-        maxChapters = Number(savedMax)
+      const storageKey = `chess-trainer:initial-due-${block.priority}`
+      const savedInitial = localStorage.getItem(storageKey)
+      
+      if (savedInitial !== null) {
+        const numSaved = Number(savedInitial)
+        initialDue = Math.max(dueInBlock.length, numSaved)
+        if (dueInBlock.length > numSaved) {
+          localStorage.setItem(storageKey, dueInBlock.length.toString())
+        }
+      } else if (dueInBlock.length > 0) {
+        localStorage.setItem(storageKey, dueInBlock.length.toString())
       }
     }
-  
-    const finalSession = maxChapters > 0 
-      ? sortedSession.slice(0, maxChapters) 
-      : sortedSession
-  
-    return { session: finalSession, summary }
+
+    const isActive = dueInBlock.length > 0
+    summary.push({ 
+      priority: block.priority, 
+      dueCount: dueInBlock.length, 
+      totalCount, 
+      initialDueCount: initialDue, 
+      isActive 
+    })
+
+    if (dueInBlock.length > 0) {
+      allDueSessions = [...allDueSessions, ...dueInBlock]
+    }
   }
-  
+
+  // Tri stable par poids de priorité
+  const sortedSession = [...allDueSessions].sort((a, b) => {
+    const getPoids = (priorityString: string): number => {
+      const p = priorityString.toUpperCase()
+      if (p.includes('ABSOLUE')) return 5
+      if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
+      if (p.includes('MOYENNE')) return 3
+      if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
+      if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
+      return 0
+    }
+
+    const poidsA = getPoids(a.priority)
+    const poidsB = getPoids(b.priority)
+
+    if (poidsA !== poidsB) return poidsB - poidsA
+    if (a.study !== b.study) return a.study.localeCompare(b.study)
+
+    const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
+    const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+    
+    return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
+  })
+
+  // Récupération de la limite max choisie par l'utilisateur
+  let maxChapters = 30
+  if (typeof window !== 'undefined') {
+    const savedMax = localStorage.getItem('chess-trainer:session-max')
+    if (savedMax !== null) {
+      maxChapters = Number(savedMax)
+    }
+  }
+
+  const finalSession = maxChapters > 0 
+    ? sortedSession.slice(0, maxChapters) 
+    : sortedSession
+
+  return { session: finalSession, summary }
+}
