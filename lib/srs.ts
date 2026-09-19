@@ -242,4 +242,19 @@ export function buildSession(
       // 3. En tout dernier recours, le nom de l'étude
       return a.study.localeCompare(b.study)
     })
-  }
+      // 4. Récupération de la limite max choisie par l'utilisateur
+      let maxChapters = 30
+      if (typeof window !== 'undefined') {
+      const savedMax = localStorage.getItem('chess-trainer:session-max')
+      if (savedMax !== null) {
+        maxChapters = Number(savedMax)
+        }
+      }
+
+      // 5. Découpage final envoyé à l'échiquier (Prend tout si "Aucune limite" vaut 0)
+      const finalSession = maxChapters > 0 
+      ? sortedSession.slice(0, maxChapters) 
+      : sortedSession
+
+    return { session: finalSession, summary }
+} 
