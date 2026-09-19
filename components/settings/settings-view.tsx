@@ -24,7 +24,13 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isScheduled, setIsScheduled] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
-  const [sessionMax, setSessionMax] = useState('30') // 30 par défaut
+  const [sessionMax, setSessionMax] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedMax = localStorage.getItem('chess-trainer:session-max')
+      return savedMax !== null ? savedMax : '30'
+    }
+    return '30'
+  })
 
   // 1. Synchronisation initiale des états
   useEffect(() => {
