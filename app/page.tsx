@@ -181,18 +181,18 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-      // 🛠️ ALIGNEMENT CHIRURGICAL ET CUMULATIF DES COMPTEURS
-  const summaryList = summary || []
+    // 🛠️ ALIGNEMENT CHIRURGICAL ET CUMULATIF DES COMPTEURS
+    const summaryList = summary || []
   
-  // 1. Le total initial est la somme STRICTE de tout ce qui était dû ce matin dans tous les blocs (ex: 58)
-  const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
+    // 1. Le total initial est la somme STRICTE de tout ce qui était dû ce matin dans tous les blocs (ex: 58)
+    const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
+    
+    // 2. Ce qu'il te reste à faire à la seconde près (décroît au fur et à mesure : 58, 57, 56...)
+    const totalRestantDuJour = session.length
   
-  // 2. Ce qu'il te reste à faire à la seconde près (décroît au fur et à mesure : 58, 57, 56...)
-  const totalRestantDuJour = session.length
-
-  // 3. Le nombre fait aujourd'hui fait un VRAI calcul d'addition (ex: passe de 0 à 1, puis à 2)
-  const totalFaitDuJour = Math.max(0, totalInitialDuJour - totalRestantDuJour)
-
+    // 3. Le nombre fait aujourd'hui fait un VRAI calcul d'addition (ex: passe de 0 à 1, puis à 2)
+    const totalFaitDuJour = Math.max(0, totalInitialDuJour - totalRestantDuJour)
+  
   
 
   return (
