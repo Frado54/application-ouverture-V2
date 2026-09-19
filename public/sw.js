@@ -1,8 +1,7 @@
 // public/sw.js
 
-const NOTIFICATION_HOUR = 10; // 10h du matin
+const NOTIFICATION_HOUR = 10; // 10h du matin fixe
 
-// Événements d'installation standards du Service Worker
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -13,8 +12,7 @@ self.addEventListener('activate', (event) => {
 
 /**
  * 🕰️ LE CHRONOMÈTRE D'ARRIÈRE-PLAN MATÉRIEL
- * Cet événement est déclenché par le système de ton smartphone (Android/iOS) 
- * de façon périodique, même si l'application est totalement fermée.
+ * Déclenché par le système de ton smartphone (Android/iOS) de façon périodique.
  */
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'daily-chess-reminder') {
@@ -22,7 +20,7 @@ self.addEventListener('periodicsync', (event) => {
   }
 });
 
-// Écouteur de secours au cas où le navigateur simulerait le rappel par message
+// Écouteur de secours pour les tests et la communication d'onglet
 self.addEventListener('message', (event) => {
   if (event.data && event.data.action === 'check-schedule') {
     checkTimeAndNotify();
@@ -32,6 +30,7 @@ self.addEventListener('message', (event) => {
 async function checkTimeAndNotify() {
   const hours = new Date().getHours();
   
+  // 🎯 SÉCURITÉ ET FIABILITÉ : À 10h pile, le téléphone envoie l'alerte directement
   if (hours === NOTIFICATION_HOUR) {
     await self.registration.showNotification("♟️ Entraînement disponible", {
       body: "Vos chapitres d'ouvertures d'échecs vous attendent pour vos révisions du jour !",
@@ -44,7 +43,7 @@ async function checkTimeAndNotify() {
 }
 
 /**
- * 🖱️ GESTION DU CLIC (Ton code d'origine fusionné et sécurisé)
+ * 🖱️ GESTION DU CLIC
  * Au clic sur la notification, on ferme la bannière et on réveille ton application
  */
 self.addEventListener('notificationclick', (event) => {
