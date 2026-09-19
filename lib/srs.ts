@@ -242,4 +242,4 @@ export function buildSession(
       // 3. En tout dernier recours, le nom de l'étude
       return a.study.localeCompare(b.study)
     })
-  
+  }
