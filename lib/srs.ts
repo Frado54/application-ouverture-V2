@@ -212,54 +212,43 @@ export function buildSession(
     }
   }
 
-    // 🛠️ CORRECTIF DU TRI : Linéarité absolue par Priorité (lib/srs.ts)
-    const sortedSession = [...allDueSessions].sort((a, b) => {
-      const getPoids = (priorityString: string): number => {
-        // 🎯 SUPRESSION DES ACCENTS ET MAJUSCULES (ex: "PRIORITÉ MOYENNE" ➔ "PRIORITE MOYENNE")
-        const p = priorityString
-          .toUpperCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-        
-        if (p.includes('ABSOLUE')) return 5
-        if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
-        if (p.includes('MOYENNE')) return 3
-        if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
-        if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
-        return 0
-      }
-  
-      const poidsA = getPoids(a.priority)
-      const poidsB = getPoids(b.priority)
-  
-      // 1. REGLE SUPREME : On trie d'abord par poids de priorité (5, 4, 3...)
-      if (poidsA !== poidsB) return poidsB - poidsA
-  
-      // 2. Si c'est la même priorité, on trie par sous-chapitres numériques directement 
-      // pour mélanger intelligemment les études si nécessaire, ou garder un ordre logique
-      const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
-      const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+      // 🛠️ TUNNEL DES PRIORITÉS INVERSIBLÉ ET GROUPEMENT PAR OUVERTURE (lib/srs.ts)
+  const sortedSession = [...allDueSessions].sort((a, b) => {
+    const getPoids = (priorityString: string): number => {
+      // Nettoyage complet des accents pour éviter les caprices des claviers mobiles
+      const p = priorityString
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+
+      if (p.includes('ABSOLUE')) return 5
+      if (p.includes('ELEVEE')) return 4
+      if (p.includes('MOYENNE')) return 3
       
-      if (chapA !== chapB) {
-        return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
-      }
-  
-      // 3. En tout dernier recours, le nom de l'étude
+      // 🎯 LE CORRECTIF ANTHONY : On teste le plus long ("TRES FAIBLE") EN PREMIER.
+      // Comme ça, un chapitre Très Faible est capturé ici et reçoit son poids de 1.
+      if (p.includes('TRES FAIBLE') || p.includes('TRÈS FAIBLE')) return 1
+      
+      // Un chapitre "FAIBLE" classique arrivera ici, évitant tout risque de faux positif.
+      if (p.includes('FAIBLE')) return 2
+      
+      return 0
+    }
+
+    const poidsA = getPoids(a.priority)
+    const poidsB = getPoids(b.priority)
+
+    // 1. RÈGLE N°1 : Respect strict du tunnel des priorités (5, 4, 3, 2, 1)
+    if (poidsA !== poidsB) return poidsB - poidsA
+
+    // 2. RÈGLE N°2 : Groupement par Ouverture alphabétique (Toutes tes lignes de la même étude se suivent)
+    if (a.study !== b.study) {
       return a.study.localeCompare(b.study)
-    })
-      // 4. Récupération de la limite max choisie par l'utilisateur
-      let maxChapters = 30
-      if (typeof window !== 'undefined') {
-      const savedMax = localStorage.getItem('chess-trainer:session-max')
-      if (savedMax !== null) {
-        maxChapters = Number(savedMax)
-        }
-      }
+    }
 
-      // 5. Découpage final envoyé à l'échiquier (Prend tout si "Aucune limite" vaut 0)
-      const finalSession = maxChapters > 0 
-      ? sortedSession.slice(0, maxChapters) 
-      : sortedSession
-
-    return { session: finalSession, summary }
-} 
+    // 3. RÈGLE N°3 : Ordre numérique des chapitres au sein de cette même ouverture
+    const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
+    const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+    
+    return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
+  })
