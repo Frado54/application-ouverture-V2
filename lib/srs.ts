@@ -212,10 +212,9 @@ export function buildSession(
     }
   }
 
-      // 🛠️ TUNNEL DES PRIORITÉS INVERSIBLÉ ET GROUPEMENT PAR OUVERTURE (lib/srs.ts)
+        // 🛠️ ALIGNEMENT TUNNEL ÉTANCHE ET GROUPEMENT ALPHABÉTIQUE INTERNE (lib/srs.ts)
   const sortedSession = [...allDueSessions].sort((a, b) => {
     const getPoids = (priorityString: string): number => {
-      // Nettoyage complet des accents pour éviter les caprices des claviers mobiles
       const p = priorityString
         .toUpperCase()
         .normalize("NFD")
@@ -224,35 +223,34 @@ export function buildSession(
       if (p.includes('ABSOLUE')) return 5
       if (p.includes('ELEVEE')) return 4
       if (p.includes('MOYENNE')) return 3
-      
-      // 🎯 LE CORRECTIF ANTHONY : On teste le plus long ("TRES FAIBLE") EN PREMIER.
-      // Comme ça, un chapitre Très Faible est capturé ici et reçoit son poids de 1.
-      if (p.includes('TRES FAIBLE') || p.includes('TRÈS FAIBLE')) return 1
-      
-      // Un chapitre "FAIBLE" classique arrivera ici, évitant tout risque de faux positif.
+      if (p.includes('TRES FAIBLE')) return 1
       if (p.includes('FAIBLE')) return 2
-      
       return 0
     }
 
     const poidsA = getPoids(a.priority)
     const poidsB = getPoids(b.priority)
 
-    // 1. RÈGLE N°1 : Respect strict du tunnel des priorités (5, 4, 3, 2, 1)
-    if (poidsA !== poidsB) return poidsB - poidsA
+    // 🎯 RÈGLE N°1 ABSOLUE : Si les poids sont différents, on respecte le tunnel des priorités.
+    // Un poids de 2 passera TOUJOURS avant un poids de 1, peu importe le nom de l'ouverture.
+    if (poidsA !== poidsB) {
+      return poidsB - poidsA
+    }
 
-    // 2. RÈGLE N°2 : Groupement par Ouverture alphabétique (Toutes tes lignes de la même étude se suivent)
+    // 🎯 RÈGLE N°2 (UNIQUEMENT SI MÊME POIDS) : Groupement alphabétique par Ouverture
+    // Toutes tes lignes d'une même étude se suivent (ex: toutes tes Najdorf d'affilée)
     if (a.study !== b.study) {
       return a.study.localeCompare(b.study)
     }
 
-    // 3. RÈGLE N°3 : Ordre numérique des chapitres au sein de cette même ouverture
+    // 🎯 RÈGLE N°3 (SI MÊME POIDS ET MÊME OUVERTURE) : Ordre numérique des chapitres (ex: 1.1, 1.2)
     const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
     const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
     
     return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
   })
-    // 4. Récupération de la limite de session configurée (20, 30, 50... ou 0 pour aucune)
+
+  // 4. Récupération de la limite max de la session
   let maxChapters = 30
   if (typeof window !== 'undefined') {
     const savedMax = localStorage.getItem('chess-trainer:session-max')
@@ -261,10 +259,11 @@ export function buildSession(
     }
   }
 
-  // 5. Découpage final envoyé à l'échiquier (Prend tout si "Aucune limite" vaut 0)
+  // 5. Découpage final envoyé à l'échiquier
   const finalSession = maxChapters > 0 
     ? sortedSession.slice(0, maxChapters) 
     : sortedSession
 
   return { session: finalSession, summary }
-} // 👈 CETTE ACCOLADE COMPLÈTE ET FERME LA FONCTION BUILDSESSION
+}
+
