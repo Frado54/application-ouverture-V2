@@ -80,23 +80,30 @@ export default function Page() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
-  useEffect(() => {
-    if (isClient) {
-      const aujourdhuiStr = new Date().toISOString().slice(0, 10)
-      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
-
-      if (dateDernierNettoyage !== aujourdhuiStr) {
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-        localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
-        localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
-        localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
-        localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
-        
-        localStorage.setItem('chess-trainer:last-clear-date', aujourdhuiStr)
+    // NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
+    useEffect(() => {
+      if (isClient) {
+        const aujourdhuiStr = new Date().toISOString().slice(0, 10)
+        const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+  
+        if (dateDernierNettoyage !== aujourdhuiStr) {
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+          localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
+          localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
+          localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
+          
+          // 🎯 AJOUT : On purge le vieux compteur persistant des clics
+          localStorage.setItem('completedCount', '0')
+          localStorage.setItem('totalSessionLength', '0')
+          setCompletedCount(0)
+          setTotalSessionLength(0)
+          
+          localStorage.setItem('chess-trainer:last-clear-date', aujourdhuiStr)
+        }
       }
-    }
-  }, [isClient])
+    }, [isClient])
+  
 
   // FIX DE L'EXTRACTION : On récupère session ET summary de l'algorithme
   const { session, summary } = useMemo(() => {
@@ -174,11 +181,15 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-  // CALCULS SÉCURISÉS SYNCHRONES
-  const summaryList = summary || []
-  const totalRestantDuJour = session.length
-  const totalFaitDuJour = completedCount
-  const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+    // CALCULS SÉCURISÉS SYNCHRONES
+    const summaryList = summary || []
+    const totalRestantDuJour = session.length
+  
+    // 🎯 SÉCURITÉ EXTRA : Si tu es sur le tableau de bord, la progression du jour est strictement à 0 
+    // tant que tu n'as pas cliqué sur Démarrer l'entraînement.
+    const totalFaitDuJour = view === 'dashboard' ? 0 : completedCount
+    const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+  
 
   return (
     <div className="min-h-svh bg-background pb-24">
