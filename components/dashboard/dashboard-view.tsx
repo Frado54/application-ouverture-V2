@@ -111,13 +111,17 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         <h3 className="font-semibold text-sm text-zinc-400 uppercase tracking-wider">Progression par blocs</h3>
         
         <div className="divide-y divide-zinc-800/60">
+        <div className="divide-y divide-zinc-800/60">
           {summary?.map((block) => {
-            // Le nombre total de chapitres dus pour ce bloc précis
-            const totalDuBloc = block.dueCount || 0
+            // 🎯 LE CORRECTIF DE SÉCURITÉ : Le total dû du matin est STRICTEMENT block.initialDueCount.
+            // Si le cache renvoie undefined ou 0 alors qu'il y a des cartes en cours, 
+            // on se rabat sur le vivant (block.dueCount), mais on ne le laisse plus s'effondrer.
+            const totalDuBloc = block.initialDueCount && block.initialDueCount > 0 
+              ? block.initialDueCount 
+              : (block.dueCount || 0)
             
-            // On calcule dynamiquement combien ont été faits pendant la session active dans ce bloc
-            // (Si session non commencée, le fait est à 0 et le dû affiche le total restant)
-            const faitDansCeBloc = 0 
+            // Le nombre fait aujourd'hui est le nombre initial du matin moins ce qu'il reste en attente
+            const faitDansCeBloc = Math.max(0, totalDuBloc - (block.dueCount || 0))
 
             return (
               <div key={block.priority} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
@@ -125,11 +129,14 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
                   {block.priority.toLowerCase().replace('priorité', '').trim()}
                 </span>
                 
+                {/* 📊 FORMAT VISUEL COMPTABILISÉ : fait / total du matin (ex: 4 / 8) */}
                 <span className="text-sm font-mono font-bold text-zinc-400">
                   {totalDuBloc > 0 ? (
                     <>
-                      <span className="text-zinc-500 font-normal">0 / </span>
-                      <span className="text-zinc-200">{totalDuBloc}</span>
+                      <span className={faitDansCeBloc === totalDuBloc ? "text-emerald-500" : "text-zinc-200"}>
+                        {faitDansCeBloc}
+                      </span>
+                      <span className="text-zinc-600 font-normal"> / {totalDuBloc}</span>
                     </>
                   ) : (
                     <span className="text-zinc-600 font-normal">0 / 0</span>
@@ -139,7 +146,3 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
             )
           })}
         </div>
-      </div>
-    </div>
-  )
-}
