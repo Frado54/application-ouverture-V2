@@ -143,6 +143,33 @@ export default function Page() {
     
     setChapterStartTime(Date.now())
     setActiveSession((prev) => prev.slice(1))
+      // 🛠️ CORRECTIF DE TRANSMISSION D'ÉCRAN SANS ÉJECTION (app/page.tsx)
+  function handleAddFeedback(entry: FeedbackEntry) {
+    const endTime = Date.now()
+    const secondsElapsed = Math.round((endTime - chapterStartTime) / 1000)
+    const safeSeconds = Math.min(secondsElapsed, 180)
+
+    setAppChapters((prev) => prev + 1)
+    setAppErrors((prev) => prev + (entry.errors || 0))
+    setAppTime((prev) => prev + safeSeconds)
+
+    // 1. Sauvegarde du feedback en arrière-plan
+    setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
+    setCompletedCount((prev) => prev + 1)
+    
+    setChapterStartTime(Date.now())
+
+    // 2. 🎯 SÉCURITÉ DE CLÔTURE : On calcule la taille restante de la session active locale
+    const nextSessionStack = activeSession.slice(1)
+    setActiveSession(nextSessionStack)
+
+    // L'application ne te renvoie sur l'accueil QUE si tu as RÉELLEMENT fini le tout dernier exercice sous ton pouce
+    if (nextSessionStack.length === 0) {
+      setView('dashboard')
+      toast.success("🏆 Session complète validée d'un seul coup !")
+    }
+  }
+
   }
 
   function handleExit() {
