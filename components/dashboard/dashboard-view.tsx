@@ -16,10 +16,10 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
   const totalRestantDuJour = session.length
   const totalFaitDuJour = forcedStats ? forcedStats.fait : 0
 
-  // Calcul du pourcentage réel de complétion de ta journée
+  // Calcule le pourcentage réel de complétion de ta journée
   const pourcentageReel = totalInitialDuJour > 0 ? Math.round((totalFaitDuJour / totalInitialDuJour) * 100) : 0
 
-  // 🛠️ RETOUR AU FORMAT HEURES / MINUTES PROPRE (ex: 351 min ➔ 5h 51min)
+  // Retour au format Heures / Minutes propre
   const totalSeconds = typeof window !== 'undefined' ? Number(localStorage.getItem('app_total_time') || 0) : 0
   const totalMinutesGlobal = Math.round(totalSeconds / 60)
   const displayHours = Math.floor(totalMinutesGlobal / 60)
@@ -41,7 +41,7 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </header>
 
-      {/* BLOC CENTRAL : AVANCEMENT GLOBAL DE LA SESSION (0 / 76) */}
+      {/* BLOC CENTRAL : AVANCEMENT GLOBAL DE LA SESSION */}
       <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-[#121214] p-6 shadow-md flex items-center justify-between gap-4">
         <div className="space-y-2 z-10">
           <h2 className="text-base font-semibold text-zinc-200">Avancement du jour</h2>
@@ -106,16 +106,13 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </div>
 
-      {/* 📊 PROGRES PAR BLOCS DYNAMIQUE (Fait / Restant Réels calculés sur les variables vivantes) */}
+      {/* 📊 PROGRES PAR BLOCS DYNAMIQUE (Fait / Initial Réels calculés sur les variables du matin) */}
       <div className="rounded-xl border border-zinc-800 bg-[#141416] p-5 space-y-3 shadow-sm">
         <h3 className="font-semibold text-sm text-zinc-400 uppercase tracking-wider">Progression par blocs</h3>
         
         <div className="divide-y divide-zinc-800/60">
-        <div className="divide-y divide-zinc-800/60">
           {summary?.map((block) => {
-            // 🎯 LE CORRECTIF DE SÉCURITÉ : Le total dû du matin est STRICTEMENT block.initialDueCount.
-            // Si le cache renvoie undefined ou 0 alors qu'il y a des cartes en cours, 
-            // on se rabat sur le vivant (block.dueCount), mais on ne le laisse plus s'effondrer.
+            // Le total dû ce matin pour ce bloc précis
             const totalDuBloc = block.initialDueCount && block.initialDueCount > 0 
               ? block.initialDueCount 
               : (block.dueCount || 0)
@@ -129,7 +126,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
                   {block.priority.toLowerCase().replace('priorité', '').trim()}
                 </span>
                 
-                {/* 📊 FORMAT VISUEL COMPTABILISÉ : fait / total du matin (ex: 4 / 8) */}
                 <span className="text-sm font-mono font-bold text-zinc-400">
                   {totalDuBloc > 0 ? (
                     <>
@@ -146,3 +142,7 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
             )
           })}
         </div>
+      </div>
+    </div>
+  )
+}
