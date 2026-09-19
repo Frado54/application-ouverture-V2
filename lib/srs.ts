@@ -212,42 +212,34 @@ export function buildSession(
     }
   }
 
-  // Tri stable par poids de priorité
-  const sortedSession = [...allDueSessions].sort((a, b) => {
-    const getPoids = (priorityString: string): number => {
-      const p = priorityString.toUpperCase()
-      if (p.includes('ABSOLUE')) return 5
-      if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
-      if (p.includes('MOYENNE')) return 3
-      if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
-      if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
-      return 0
-    }
-
-    const poidsA = getPoids(a.priority)
-    const poidsB = getPoids(b.priority)
-
-    if (poidsA !== poidsB) return poidsB - poidsA
-    if (a.study !== b.study) return a.study.localeCompare(b.study)
-
-    const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
-    const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
-    
-    return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
-  })
-
-  // Récupération de la limite max choisie par l'utilisateur
-  let maxChapters = 30
-  if (typeof window !== 'undefined') {
-    const savedMax = localStorage.getItem('chess-trainer:session-max')
-    if (savedMax !== null) {
-      maxChapters = Number(savedMax)
-    }
-  }
-
-  const finalSession = maxChapters > 0 
-    ? sortedSession.slice(0, maxChapters) 
-    : sortedSession
-
-  return { session: finalSession, summary }
-}
+    // 🛠️ CORRECTIF DU TRI : Linéarité absolue par Priorité (lib/srs.ts)
+    const sortedSession = [...allDueSessions].sort((a, b) => {
+      const getPoids = (priorityString: string): number => {
+        const p = priorityString.toUpperCase()
+        if (p.includes('ABSOLUE')) return 5
+        if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
+        if (p.includes('MOYENNE')) return 3
+        if (p.includes('FAIBLE') && !p.includes('TRÈS')) return 2
+        if (p.includes('TRÈS FAIBLE') || p.includes('TRES FAIBLE')) return 1
+        return 0
+      }
+  
+      const poidsA = getPoids(a.priority)
+      const poidsB = getPoids(b.priority)
+  
+      // 1. REGLE SUPREME : On trie d'abord par poids de priorité (5, 4, 3...)
+      if (poidsA !== poidsB) return poidsB - poidsA
+  
+      // 2. Si c'est la même priorité, on trie par sous-chapitres numériques directement 
+      // pour mélanger intelligemment les études si nécessaire, ou garder un ordre logique
+      const chapA = typeof a.chapter === 'string' ? a.chapter : (a.chapter as any).id || ''
+      const chapB = typeof b.chapter === 'string' ? b.chapter : (b.chapter as any).id || ''
+      
+      if (chapA !== chapB) {
+        return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
+      }
+  
+      // 3. En tout dernier recours, le nom de l'étude
+      return a.study.localeCompare(b.study)
+    })
+  
