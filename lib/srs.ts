@@ -252,3 +252,19 @@ export function buildSession(
     
     return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: 'base' })
   })
+    // 4. Récupération de la limite de session configurée (20, 30, 50... ou 0 pour aucune)
+  let maxChapters = 30
+  if (typeof window !== 'undefined') {
+    const savedMax = localStorage.getItem('chess-trainer:session-max')
+    if (savedMax !== null) {
+      maxChapters = Number(savedMax)
+    }
+  }
+
+  // 5. Découpage final envoyé à l'échiquier (Prend tout si "Aucune limite" vaut 0)
+  const finalSession = maxChapters > 0 
+    ? sortedSession.slice(0, maxChapters) 
+    : sortedSession
+
+  return { session: finalSession, summary }
+} // 👈 CETTE ACCOLADE COMPLÈTE ET FERME LA FONCTION BUILDSESSION
