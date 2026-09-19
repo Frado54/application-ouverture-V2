@@ -174,50 +174,32 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-  // 🛠️ CALCULS GLOBAUX SÉCURISÉS (Placés au bon endroit en JavaScript pur)
-  const summaryList = summary || []
-  const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
-  const totalRestantDuJour = session.length
-
-  const totalFaitDuJour = view === 'training'
-    ? Math.max(0, totalInitialDuJour - totalRestantDuJour)
-    : completedCount
-
-  return (
-    <div className="min-h-svh bg-background pb-24">
-      {activeTab === 'aujourdhui' && (
-        <DashboardView 
-          session={session} 
-          summary={summaryList} 
-          onStart={handleStart}
-          forcedStats={{
-            fait: totalFaitDuJour,
-            total: totalInitialDuJour > 0 ? totalInitialDuJour : totalRestantDuJour
-          }}
-        />
-      )}
-      
-      {activeTab === 'gerer' && (
-        <div className="p-4 max-w-2xl mx-auto space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1 text-foreground">Gestion du Répertoire</h1>
-            <p className="text-sm text-muted-foreground mb-6">Visualisez, modifiez ou exportez les données brutes.</p>
-          </div>
-          <ImportPanel initialText={importText} onImport={handleImport} />
-        </div>
-      )}
-
-      {activeTab === 'stats' && (
-        <StatsView 
-          totalChapters={appChapters} 
-          totalErrors={appErrors} 
-          totalTimeInSeconds={appTime} 
-          feedback={feedback}
-        />
-      )}
-
-      {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
-    </div>
-  )
-}
+    // 🛠️ ALIGNEMENT CHIRURGICAL ET SYNCHRONE DES COMPTEURS (app/page.tsx)
+    const summaryList = summary || []
+  
+    // Le nombre restant est TOUJOURS le nombre de chapitres en attente calculés par l'SRS (ex: 76)
+    const totalRestantDuJour = session.length
+  
+    // Le nombre fait est le nombre de feedbacks validés durant la session active (0 si tu n'as pas démarré)
+    const totalFaitDuJour = completedCount
+  
+    // Le total de la journée est la somme exacte des chapitres faits et des chapitres restants
+    const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+  
+    return (
+      <div className="min-h-svh bg-background pb-24">
+        {/* 📊 PASSAGE DE L'ENVELOPPE TOTALEMENT COHÉRENTE AU DASHBOARD */}
+        {activeTab === 'aujourdhui' && (
+          <DashboardView 
+            session={session} 
+            summary={summaryList} 
+            onStart={handleStart}
+            forcedStats={{
+              fait: totalFaitDuJour,
+              total: totalInitialDuJour
+            }}
+          />
+        )}
+        
+        {/* ... reste de tes onglets (gerer, stats, reglages) ... */}
+  

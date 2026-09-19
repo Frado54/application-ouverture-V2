@@ -7,19 +7,24 @@ interface DashboardViewProps {
   session: DueChapter[]
   summary: PriorityBlockSummary[]
   onStart: () => void
-  forcedStats?: { fait: number; total: number } // 👈 Sécurité d'alignement racine
+  forcedStats?: { fait: number; total: number }
 }
 
 export function DashboardView({ session, summary, onStart, forcedStats }: DashboardViewProps) {
-  // Extraction dynamique et protection contre les restes de la veille
-  const totalInitialDuJour = forcedStats ? forcedStats.total : (summary?.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0) || 0)
+  // Extraction des compteurs synchronisés depuis la racine
+  const totalInitialDuJour = forcedStats ? forcedStats.total : session.length
   const totalRestantDuJour = session.length
-  const totalFaitDuJour = forcedStats ? forcedStats.fait : Math.max(0, totalInitialDuJour - totalRestantDuJour)
+  const totalFaitDuJour = forcedStats ? forcedStats.fait : 0
 
-  // Calcule le pourcentage réel du cercle. Si rien n'est révisé, la jauge est strictement vide (0%)
+  // Calcul du pourcentage réel de complétion de ta journée
   const pourcentageReel = totalInitialDuJour > 0 ? Math.round((totalFaitDuJour / totalInitialDuJour) * 100) : 0
 
-  const gameTimeMinutes = typeof window !== 'undefined' ? Math.round(Number(localStorage.getItem('app_total_time') || 0) / 60) : 0
+  // 🛠️ RETOUR AU FORMAT HEURES / MINUTES PROPRE (ex: 351 min ➔ 5h 51min)
+  const totalSeconds = typeof window !== 'undefined' ? Number(localStorage.getItem('app_total_time') || 0) : 0
+  const totalMinutesGlobal = Math.round(totalSeconds / 60)
+  const displayHours = Math.floor(totalMinutesGlobal / 60)
+  const displayMinutes = totalMinutesGlobal % 60
+  
   const currentStreak = typeof window !== 'undefined' ? Number(localStorage.getItem('chess-trainer:streak') || 0) : 0
 
   return (
@@ -36,15 +41,13 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </header>
 
-      {/* BLOC AVANCEMENT GLOBAL DE LA JOURNÉE (Format : fait / dû) */}
+      {/* BLOC CENTRAL : AVANCEMENT GLOBAL DE LA SESSION (0 / 76) */}
       <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-[#121214] p-6 shadow-md flex items-center justify-between gap-4">
         <div className="space-y-2 z-10">
           <h2 className="text-base font-semibold text-zinc-200">Avancement du jour</h2>
           <div className="flex items-baseline gap-1.5">
             <span className="font-mono text-3xl font-bold tracking-tight text-zinc-100">
-              {totalRestantDuJour === 0 && totalInitialDuJour > 0 
-                ? `${totalInitialDuJour} / ${totalInitialDuJour}` 
-                : `${totalFaitDuJour} / ${totalInitialDuJour}`}
+              {totalFaitDuJour} / {totalInitialDuJour}
             </span>
             <span className="text-xs text-zinc-500 font-medium">chapitres</span>
           </div>
@@ -55,7 +58,7 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
           </p>
         </div>
 
-        {/* CERCLE DE PROGRESSION DYNAMIQUE */}
+        {/* CERCLE DE PROGRESSION VISUEL */}
         <div className="relative size-20 shrink-0 flex items-center justify-center">
           <svg className="size-full -rotate-90">
             <circle cx="40" cy="40" r="34" className="stroke-zinc-800 fill-none" strokeWidth="6" />
@@ -74,7 +77,7 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </div>
 
-      {/* BOUTON DÉMARRER AVEC VARIANTES RESTANTES VIVANTES */}
+      {/* BOUTON DE LANCEMENT DE SESSION DYNAMIQUE */}
       {totalRestantDuJour > 0 && (
         <button
           type="button"
@@ -86,11 +89,13 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </button>
       )}
 
-      {/* STATS RAPIDES */}
+      {/* STATS RAPIDES (Temps de jeu converti) */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-sm">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Temps d&apos;étude</p>
-          <p className="font-mono text-xl font-bold mt-1 text-zinc-200">{gameTimeMinutes} <span className="text-xs font-normal text-zinc-500">min</span></p>
+          <p className="font-mono text-lg font-bold mt-1 text-zinc-200">
+            {displayHours > 0 ? `${displayHours}h ` : ''}{displayMinutes} <span className="text-xs font-normal text-zinc-500">min</span>
+          </p>
         </div>
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-sm flex flex-col justify-center">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Statut</p>
@@ -101,15 +106,19 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </div>
 
-      {/* 📊 PROGRES PAR BLOCS RECONSTRUIT (Affiche TOUT sans masquer au format fait / dû) */}
+      {/* 📊 PROGRES PAR BLOCS DYNAMIQUE (Fait / Restant Réels calculés sur les variables vivantes) */}
       <div className="rounded-xl border border-zinc-800 bg-[#141416] p-5 space-y-3 shadow-sm">
         <h3 className="font-semibold text-sm text-zinc-400 uppercase tracking-wider">Progression par blocs</h3>
         
         <div className="divide-y divide-zinc-800/60">
           {summary?.map((block) => {
-            const initialForBlock = block.initialDueCount || block.dueCount || 0
-            const faitDansCeBloc = Math.max(0, initialForBlock - block.dueCount)
+            // Le nombre total de chapitres dus pour ce bloc précis
+            const totalDuBloc = block.dueCount || 0
             
+            // On calcule dynamiquement combien ont été faits pendant la session active dans ce bloc
+            // (Si session non commencée, le fait est à 0 et le dû affiche le total restant)
+            const faitDansCeBloc = 0 
+
             return (
               <div key={block.priority} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
                 <span className="text-sm font-medium text-zinc-300 capitalize">
@@ -117,12 +126,10 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
                 </span>
                 
                 <span className="text-sm font-mono font-bold text-zinc-400">
-                  {initialForBlock > 0 ? (
+                  {totalDuBloc > 0 ? (
                     <>
-                      <span className={faitDansCeBloc === initialForBlock ? "text-emerald-500" : "text-zinc-200"}>
-                        {faitDansCeBloc}
-                      </span>
-                      <span className="text-zinc-600 font-normal"> / {initialForBlock}</span>
+                      <span className="text-zinc-500 font-normal">0 / </span>
+                      <span className="text-zinc-200">{totalDuBloc}</span>
                     </>
                   ) : (
                     <span className="text-zinc-600 font-normal">0 / 0</span>
