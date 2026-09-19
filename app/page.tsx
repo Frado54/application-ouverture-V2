@@ -178,8 +178,40 @@ export default function Page() {
 
   return (
     <div className="min-h-svh bg-background pb-24">
-      {/* 🛠️ PASSAGE DE COMPTEURS GLOBAUX : On transmet la structure 'summary' au tableau de bord */}
-      {activeTab === 'aujourdhui' && <DashboardView session={session} summary={summary} onStart={handleStart} />}
+        // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
+  const summaryList = summary || []
+  const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
+  const totalRestantDuJour = session.length // Se cale strictement sur les 76 chapitres vivants
+
+  // Si on est sur l'accueil (dashboard), le nombre fait est égal au compteur, sinon calculé
+  const totalFaitDuJour = view === 'training'
+    ? Math.max(0, totalInitialDuJour - totalRestantDuJour)
+    : completedCount
+
+    // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
+  const summaryList = summary || []
+  const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
+  const totalRestantDuJour = session.length // Se cale strictement sur les 76 chapitres vivants
+
+  // Si on est sur l'accueil (dashboard), le nombre fait est égal au compteur, sinon calculé
+  const totalFaitDuJour = view === 'training'
+    ? Math.max(0, totalInitialDuJour - totalRestantDuJour)
+    : completedCount
+
+  return (
+    <div className="min-h-svh bg-background pb-24">
+      {/* 📊 PASSAGE DE L'ENVELOPPE DE SECOURS SÉCURISÉE AU DASHBOARD */}
+      {activeTab === 'aujourdhui' && (
+        <DashboardView 
+          session={session} 
+          summary={summaryList} 
+          onStart={handleStart}
+          forcedStats={{
+            fait: totalFaitDuJour,
+            total: totalInitialDuJour > 0 ? totalInitialDuJour : totalRestantDuJour
+          }}
+        />
+      )}
       
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">

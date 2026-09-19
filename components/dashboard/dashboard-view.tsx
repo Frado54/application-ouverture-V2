@@ -1,147 +1,133 @@
 'use client'
 
-import { Play } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import type { DueChapter } from '@/lib/types'
-
-// Structure attendue pour le récapitulatif des blocs
-interface PriorityBlockSummary {
-  priority: string
-  dueCount: number
-  totalCount: number
-  isActive: boolean
-}
+import { Flame, Play, Trophy } from 'lucide-react'
+import type { DueChapter, PriorityBlockSummary } from '@/lib/types'
 
 interface DashboardViewProps {
   session: DueChapter[]
+  summary: PriorityBlockSummary[]
   onStart: () => void
+  forcedStats?: { fait: number; total: number } // 👈 Sécurité d'alignement racine
 }
 
-export function DashboardView({ session, onStart }: DashboardViewProps) {
-  const isClient = typeof window !== 'undefined'
+export function DashboardView({ session, summary, onStart, forcedStats }: DashboardViewProps) {
+  // Extraction dynamique et protection contre les restes de la veille
+  const totalInitialDuJour = forcedStats ? forcedStats.total : (summary?.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0) || 0)
+  const totalRestantDuJour = session.length
+  const totalFaitDuJour = forcedStats ? forcedStats.fait : Math.max(0, totalInitialDuJour - totalRestantDuJour)
 
-  // 1. Récupération dynamique des compteurs réels depuis le localStorage
-  const completedCount = isClient ? Number(localStorage.getItem('completedCount') || 0) : 0
-  const totalSessionLength = isClient ? Number(localStorage.getItem('totalSessionLength') || 0) : 0
+  // Calcule le pourcentage réel du cercle. Si rien n'est révisé, la jauge est strictement vide (0%)
+  const pourcentageReel = totalInitialDuJour > 0 ? Math.round((totalFaitDuJour / totalInitialDuJour) * 100) : 0
 
-  // Longueur effective pour la jauge du jour
-  const sessionLength = totalSessionLength > 0 ? totalSessionLength : session.length
-
-  // Pourcentage global
-  const globalPercentage = sessionLength > 0 
-    ? Math.min(100, Math.round((completedCount / sessionLength) * 100)) 
-    : 0
-
-  // 2. Reconstruction dynamique du résumé des blocs (summary) directement sur l'accueil
-  const summary: PriorityBlockSummary[] = useMemo(() => {
-    const map = new Map<string, { due: number; total: number }>()
-    
-    // On regroupe les éléments de la session en cours par priorité
-    session.forEach((item) => {
-      const current = map.get(item.priority) || { due: 0, total: 0 }
-      map.set(item.priority, {
-        due: current.due + 1,
-        total: current.total + 1, // Approximation basée sur les cartes actives
-      })
-    })
-
-    // S'il n'y a plus rien, on affiche une liste par défaut propre
-    const priorities = ['PRIORITÉ ABSOLUE', 'ÉLEVÉE', 'MOYENNE', 'FAIBLE', 'TRÈS FAIBLE']
-    return priorities.map((p) => {
-      const counts = map.get(p) || { due: 0, total: 0 }
-      return {
-        priority: p,
-        dueCount: counts.due,
-        totalCount: counts.total || 0,
-        isActive: counts.due > 0,
-      }
-    })
-  }, [session])
+  const gameTimeMinutes = typeof window !== 'undefined' ? Math.round(Number(localStorage.getItem('app_total_time') || 0) / 60) : 0
+  const currentStreak = typeof window !== 'undefined' ? Number(localStorage.getItem('chess-trainer:streak') || 0) : 0
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 text-foreground animate-fade-in">
-      {/* HEADER PRINCIPAL */}
-      <header className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-[#E0532C]">Entraîneur de Répertoire</p>
-        <h1 className="font-serif text-3xl font-semibold text-zinc-100">Aujourd'hui</h1>
-        <p className="text-sm text-muted-foreground">Prêt pour tes révisions quotidiennes ?</p>
+      {/* EN-TÊTE PROFILE */}
+      <header className="flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Tableau de bord</p>
+          <h1 className="font-serif text-2xl font-semibold text-zinc-100">Aujourd&apos;hui</h1>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/80 border border-zinc-800 rounded-full shadow-sm">
+          <Flame className="size-4 text-orange-500 fill-orange-500 animate-pulse" />
+          <span className="font-mono text-sm font-bold text-zinc-200">{currentStreak}j</span>
+        </div>
       </header>
 
-      {/* BOUTON JOUER PRINCIPAL */}
-      <div className="bg-[#131315] border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-4 shadow-xl">
-        <div className="space-y-1">
-          <p className="text-4xl font-extrabold font-mono text-zinc-100">{session.length}</p>
-          <p className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">Chapitres restants à valider</p>
+      {/* BLOC AVANCEMENT GLOBAL DE LA JOURNÉE (Format : fait / dû) */}
+      <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-[#121214] p-6 shadow-md flex items-center justify-between gap-4">
+        <div className="space-y-2 z-10">
+          <h2 className="text-base font-semibold text-zinc-200">Avancement du jour</h2>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-mono text-3xl font-bold tracking-tight text-zinc-100">
+              {totalRestantDuJour === 0 && totalInitialDuJour > 0 
+                ? `${totalInitialDuJour} / ${totalInitialDuJour}` 
+                : `${totalFaitDuJour} / ${totalInitialDuJour}`}
+            </span>
+            <span className="text-xs text-zinc-500 font-medium">chapitres</span>
+          </div>
+          <p className="text-xs text-zinc-500 font-medium">
+            {totalRestantDuJour > 0 
+              ? `Il vous reste ${totalRestantDuJour} variantes à valider.` 
+              : "Félicitations ! Votre répertoire est parfaitement à jour."}
+          </p>
         </div>
 
-        <Button
+        {/* CERCLE DE PROGRESSION DYNAMIQUE */}
+        <div className="relative size-20 shrink-0 flex items-center justify-center">
+          <svg className="size-full -rotate-90">
+            <circle cx="40" cy="40" r="34" className="stroke-zinc-800 fill-none" strokeWidth="6" />
+            <circle
+              cx="40"
+              cy="40"
+              r="34"
+              className="stroke-[#E0532C] fill-none transition-all duration-500 ease-out"
+              strokeWidth="6"
+              strokeDasharray={2 * Math.PI * 34}
+              strokeDashoffset={2 * Math.PI * 34 * (1 - pourcentageReel / 100)}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute font-mono text-sm font-bold text-zinc-200">{pourcentageReel}%</span>
+        </div>
+      </div>
+
+      {/* BOUTON DÉMARRER AVEC VARIANTES RESTANTES VIVANTES */}
+      {totalRestantDuJour > 0 && (
+        <button
+          type="button"
           onClick={onStart}
-          disabled={session.length === 0}
-          className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-base transition-all transform active:scale-95 shadow-lg shadow-indigo-600/10 disabled:opacity-40"
+          className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-lg text-base"
         >
-          <Play className="size-5 fill-current" />
-          <span>Démarrer l'entraînement</span>
-        </Button>
-      </div>
+          <Play className="size-5 fill-white" />
+          <span>Démarrer l&apos;entraînement ({totalRestantDuJour})</span>
+        </button>
+      )}
 
-      {/* JAUGE DE LA SESSION EN COURS */}
-      <div className="rounded-xl border border-zinc-800 bg-[#151517] p-5 space-y-4 shadow-md">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-sm text-zinc-300">Avancement de la session</h3>
-            <p className="text-2xl font-mono font-bold text-indigo-400 mt-1">
-              {completedCount} <span className="text-zinc-500 text-base">/ {sessionLength}</span>
-            </p>
-          </div>
-          
-          <div className="relative size-16 flex items-center justify-center">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="15.915" fill="none" stroke="#27272A" strokeWidth="3.5" />
-              <circle
-                className="text-indigo-500 transition-all duration-500"
-                strokeDasharray={`${globalPercentage}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="none"
-                cx="18" cy="18" r="15.915"
-              />
-            </svg>
-            <span className="absolute font-mono text-xs font-bold text-zinc-200">{globalPercentage}%</span>
-          </div>
+      {/* STATS RAPIDES */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-sm">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Temps d&apos;étude</p>
+          <p className="font-mono text-xl font-bold mt-1 text-zinc-200">{gameTimeMinutes} <span className="text-xs font-normal text-zinc-500">min</span></p>
+        </div>
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-sm flex flex-col justify-center">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Statut</p>
+          <p className="text-sm font-bold mt-1 text-emerald-500 flex items-center gap-1">
+            <Trophy className="size-4 shrink-0" />
+            <span>{totalRestantDuJour === 0 ? "Complété" : "En cours"}</span>
+          </p>
         </div>
       </div>
 
-      {/* LISTE DES BLOCS DE PRIORITÉ */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-1">Progression par blocs</h2>
-        <div className="space-y-2.5">
-          {summary.map((block) => {
-            const colorClass = block.priority.includes('ABSOLUE') ? 'bg-red-500' 
-                             : block.priority.includes('ÉLEVÉE') ? 'bg-orange-500'
-                             : block.priority.includes('MOYENNE') ? 'bg-yellow-500'
-                             : 'bg-green-500'
-
+      {/* 📊 PROGRES PAR BLOCS RECONSTRUIT (Affiche TOUT sans masquer au format fait / dû) */}
+      <div className="rounded-xl border border-zinc-800 bg-[#141416] p-5 space-y-3 shadow-sm">
+        <h3 className="font-semibold text-sm text-zinc-400 uppercase tracking-wider">Progression par blocs</h3>
+        
+        <div className="divide-y divide-zinc-800/60">
+          {summary?.map((block) => {
+            const initialForBlock = block.initialDueCount || block.dueCount || 0
+            const faitDansCeBloc = Math.max(0, initialForBlock - block.dueCount)
+            
             return (
-              <div 
-                key={block.priority} 
-                className={`p-3.5 rounded-xl border transition-all ${
-                  block.isActive 
-                    ? 'bg-[#18181B] border-zinc-800/80 opacity-100' 
-                    : 'bg-zinc-900/20 border-zinc-900/30 opacity-40'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`size-2 rounded-full ${colorClass}`} />
-                    <span className="font-mono text-[11px] font-bold tracking-wide text-zinc-300 uppercase">
-                      {block.priority}
-                    </span>
-                  </div>
-                  <span className="font-mono text-xs font-semibold text-zinc-400">
-                    {block.dueCount} en attente
-                  </span>
-                </div>
+              <div key={block.priority} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+                <span className="text-sm font-medium text-zinc-300 capitalize">
+                  {block.priority.toLowerCase().replace('priorité', '').trim()}
+                </span>
+                
+                <span className="text-sm font-mono font-bold text-zinc-400">
+                  {initialForBlock > 0 ? (
+                    <>
+                      <span className={faitDansCeBloc === initialForBlock ? "text-emerald-500" : "text-zinc-200"}>
+                        {faitDansCeBloc}
+                      </span>
+                      <span className="text-zinc-600 font-normal"> / {initialForBlock}</span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-600 font-normal">0 / 0</span>
+                  )}
+                </span>
               </div>
             )
           })}
@@ -150,6 +136,3 @@ export function DashboardView({ session, onStart }: DashboardViewProps) {
     </div>
   )
 }
-
-// Petit import pour le hook useMemo
-import { useMemo } from 'react'
