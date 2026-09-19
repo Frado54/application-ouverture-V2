@@ -215,7 +215,12 @@ export function buildSession(
     // 🛠️ CORRECTIF DU TRI : Linéarité absolue par Priorité (lib/srs.ts)
     const sortedSession = [...allDueSessions].sort((a, b) => {
       const getPoids = (priorityString: string): number => {
-        const p = priorityString.toUpperCase()
+        // 🎯 SUPRESSION DES ACCENTS ET MAJUSCULES (ex: "PRIORITÉ MOYENNE" ➔ "PRIORITE MOYENNE")
+        const p = priorityString
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+        
         if (p.includes('ABSOLUE')) return 5
         if (p.includes('ÉLEVÉE') || p.includes('ELEVEE')) return 4
         if (p.includes('MOYENNE')) return 3
