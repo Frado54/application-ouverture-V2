@@ -80,14 +80,13 @@ export default function Page() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // 🛠️ NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
+  // NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
   useEffect(() => {
     if (isClient) {
       const aujourdhuiStr = new Date().toISOString().slice(0, 10)
       const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
 
       if (dateDernierNettoyage !== aujourdhuiStr) {
-        // C'est un nouveau jour : on efface les mémoires initiales de la veille pour recalculer à blanc
         localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
         localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
         localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
@@ -99,7 +98,7 @@ export default function Page() {
     }
   }, [isClient])
 
-  // 🛠️ FIX DE L'EXTRACTION : On récupère à la fois 'session' ET 'summary' de l'algorithme
+  // FIX DE L'EXTRACTION : On récupère session ET summary de l'algorithme
   const { session, summary } = useMemo(() => {
     return buildSession(revisionBlocks, feedback)
   }, [revisionBlocks, feedback])
@@ -160,7 +159,6 @@ export default function Page() {
     setTotalSessionLength(0)
     setCompletedCount(0)
 
-    // Lors d'un nouvel import complet de fichier JSON, on nettoie les verrous de totaux pour recalculer proprement
     if (isClient) {
       localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
       localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
@@ -176,31 +174,17 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-  return (
-  <div className="min-h-svh bg-background pb-24">
-  // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
+  // 🛠️ CALCULS GLOBAUX SÉCURISÉS (Placés au bon endroit en JavaScript pur)
   const summaryList = summary || []
   const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
-  const totalRestantDuJour = session.length // Se cale strictement sur les 76 chapitres vivants
+  const totalRestantDuJour = session.length
 
-  // Si on est sur l'accueil (dashboard), le nombre fait est égal au compteur, sinon calculé
-  const totalFaitDuJour = view === 'training'
-    ? Math.max(0, totalInitialDuJour - totalRestantDuJour)
-    : completedCount
-
-    // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
-  const summaryList = summary || []
-  const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
-  const totalRestantDuJour = session.length // Se cale strictement sur les 76 chapitres vivants
-
-  // Si on est sur l'accueil (dashboard), le nombre fait est égal au compteur, sinon calculé
   const totalFaitDuJour = view === 'training'
     ? Math.max(0, totalInitialDuJour - totalRestantDuJour)
     : completedCount
 
   return (
     <div className="min-h-svh bg-background pb-24">
-      {/* 📊 PASSAGE DE L'ENVELOPPE DE SECOURS SÉCURISÉE AU DASHBOARD */}
       {activeTab === 'aujourdhui' && (
         <DashboardView 
           session={session} 
