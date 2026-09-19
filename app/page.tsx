@@ -177,8 +177,8 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-svh bg-background pb-24">
-        // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
+  <div className="min-h-svh bg-background pb-24">
+  // 🛠️ CALCULS GLOBAUX ULTRA-SÉCURISÉS CONTRE LES BUGS DE CACHE
   const summaryList = summary || []
   const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
   const totalRestantDuJour = session.length // Se cale strictement sur les 76 chapitres vivants
