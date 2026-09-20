@@ -38,8 +38,17 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     ? JSON.parse(localStorage.getItem('chess-trainer:feedback') || '[]') 
     : []
 
-  const chapter = session[index]
-  const finished = index >= session.length
+   // 🛠️ NOUVEAU CODE INFAILLIBLE : On se base sur l'existence réelle du chapitre
+   const chapter = session[index]
+  
+   // La session n'est réellement finie que s'il n'y a plus aucun chapitre physique 
+   // disponible dans la liste à l'index courant
+   const finished = !chapter
+ 
+   // On isole l'historique de ce chapitre précis pour l'envoyer au simulateur
+   const currentChapterFeedbacks = chapter 
+     ? allAppFeedbacks.filter((f) => f.study === chapter.study && f.chapter === chapter.chapter)
+     : []
 
   // On isole l'historique de ce chapitre précis pour l'envoyer au simulateur
   const currentChapterFeedbacks = chapter 
