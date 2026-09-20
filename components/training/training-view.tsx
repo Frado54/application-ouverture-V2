@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { ChessTrainingBoard } from './chess-training-board'
 import { simulateNextIntervalStr } from '@/lib/srs'
@@ -16,7 +16,7 @@ const FEEDBACK_BUTTONS: { level: FeedbackLevel; className: string }[] = [
 ]
 
 interface TrainingViewProps {
-  session: DueChapter[]
+  session: DueChapter[] // Reçoit 'activeSession' de la racine
   pgnChapters: Record<string, PgnChapter>
   onAddFeedback: (entry: FeedbackEntry) => void
   onExit: () => void
@@ -25,7 +25,6 @@ interface TrainingViewProps {
 export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: TrainingViewProps) {
   const isClient = typeof window !== 'undefined'
   
-  const [index, setIndex] = useState(0)
   const [chapterErrors, setChapterErrors] = useState(0)
   const [awaitingFeedback, setAwaitingFeedback] = useState(false)
 
@@ -38,11 +37,11 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     ? JSON.parse(localStorage.getItem('chess-trainer:feedback') || '[]') 
     : []
 
-  // 🛠️ FIX SECU ANTI-ÉJECTION : On se base uniquement sur l'existence réelle du chapitre courant
-  const chapter = session[index]
-  const finished = !chapter
+  // 🎯 UNIFICATION SUPRÊME : Le chapitre actif est TOUJOURS le premier de la pile active
+  const chapter = session[0]
+  const finished = session.length === 0
 
-  // Extraction de l'historique du chapitre courant pour le simulateur (Une seule fois !)
+  // Extraction de l'historique du chapitre courant pour le simulateur
   const currentChapterFeedbacks = chapter 
     ? allAppFeedbacks.filter((f) => f.study === chapter.study && f.chapter === chapter.chapter)
     : []
@@ -69,7 +68,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
         <div className="space-y-2">
           <h2 className="font-serif text-2xl font-semibold text-foreground">Session terminée</h2>
           <p className="text-muted-foreground">
-            Vous avez révisé tous les chapitres dus. Bon travail !
+            Vous avez révisé tous les chapitres chargés. Bon travail !
           </p>
         </div>
         <button
@@ -84,10 +83,8 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   }
 
   const pgn = pgnChapters[`${chapter.study}__${chapter.chapter}`]
-  
-  // Le maximum s'adapte à la longueur réelle cumulée de la session
   const totalLength = totalSessionLength > 0 ? totalSessionLength : (session.length + completedCount)
-  const currentProgressCount = completedCount + index + 1
+  const currentProgressCount = completedCount + 1
 
   if (!pgn) {
     return (
@@ -124,7 +121,6 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
     })
     setAwaitingFeedback(false)
     setChapterErrors(0)
-    setIndex((i) => i + 1)
   }
 
   return (
@@ -146,7 +142,7 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div
           className="h-full rounded-full bg-[#E0532C] transition-all duration-300"
-          style={{ width: `${(Math.min(completedCount + index + (awaitingFeedback ? 1 : 0), totalLength) / totalLength) * 100}%` }}
+          style={{ width: `${(Math.min(completedCount + (awaitingFeedback ? 1 : 0), totalLength) / totalLength) * 100}%` }}
         />
       </div>
 
