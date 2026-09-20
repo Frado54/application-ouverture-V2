@@ -80,29 +80,30 @@ export default function Page() {
 
   useEffect(() => { setMounted(true) }, [])
 
-    // NETTOYAGE DES COMPTEURS INITIALS À MINUIT PILE
-    useEffect(() => {
-      if (isClient) {
-        const aujourdhuiStr = new Date().toISOString().slice(0, 10)
-        const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
-  
-        if (dateDernierNettoyage !== aujourdhuiStr) {
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-          localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
-          localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
-          localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
-          localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
-          
-          // 🎯 AJOUT : On purge le vieux compteur persistant des clics
-          localStorage.setItem('completedCount', '0')
-          localStorage.setItem('totalSessionLength', '0')
-          setCompletedCount(0)
-          setTotalSessionLength(0)
-          
-          localStorage.setItem('chess-trainer:last-clear-date', aujourdhuiStr)
-        }
+      // 🛠️ NETTOYAGE MATINAL INFAILLIBLE (Date Locale de France)
+  useEffect(() => {
+    if (isClient) {
+      const tzOffset = new Date().getTimezoneOffset() * 60000
+      const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
+      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+
+      if (dateDernierNettoyage !== localISODate) {
+        localStorage.setItem('completedCount', '0')
+        localStorage.setItem('totalSessionLength', '0')
+        setCompletedCount(0)
+        setTotalSessionLength(0)
+
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+        localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
+        localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
+        localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
+        localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
+        
+        localStorage.setItem('chess-trainer:last-clear-date', localISODate)
       }
-    }, [isClient])
+    }
+  }, [isClient])
+
   
 
   // FIX DE L'EXTRACTION : On récupère session ET summary de l'algorithme
@@ -142,34 +143,14 @@ export default function Page() {
     setCompletedCount((prev) => prev + 1)
     
     setChapterStartTime(Date.now())
-    setActiveSession((prev) => prev.slice(1))
-      // 🛠️ CORRECTIF DE TRANSMISSION D'ÉCRAN SANS ÉJECTION (app/page.tsx)
-  function handleAddFeedback(entry: FeedbackEntry) {
-    const endTime = Date.now()
-    const secondsElapsed = Math.round((endTime - chapterStartTime) / 1000)
-    const safeSeconds = Math.min(secondsElapsed, 180)
 
-    setAppChapters((prev) => prev + 1)
-    setAppErrors((prev) => prev + (entry.errors || 0))
-    setAppTime((prev) => prev + safeSeconds)
-
-    // 1. Sauvegarde du feedback en arrière-plan
-    setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
-    setCompletedCount((prev) => prev + 1)
-    
-    setChapterStartTime(Date.now())
-
-    // 2. 🎯 SÉCURITÉ DE CLÔTURE : On calcule la taille restante de la session active locale
+    // Sécurité anti-éjection : on calcule le reliquat sur la pile active locale
     const nextSessionStack = activeSession.slice(1)
     setActiveSession(nextSessionStack)
 
-    // L'application ne te renvoie sur l'accueil QUE si tu as RÉELLEMENT fini le tout dernier exercice sous ton pouce
     if (nextSessionStack.length === 0) {
       setView('dashboard')
-      toast.success("🏆 Session complète validée d'un seul coup !")
     }
-  }
-
   }
 
   function handleExit() {
