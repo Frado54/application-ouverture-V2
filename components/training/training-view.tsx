@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { ChessTrainingBoard } from './chess-training-board'
-import { simulateNextIntervalStr } from '@/lib/srs' // 👈 1. Importation de ton calculateur de prédiction
+import { simulateNextIntervalStr } from '@/lib/srs'
 import type { DueChapter, FeedbackEntry, FeedbackLevel, PgnChapter } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -33,24 +33,16 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
   const completedCount = isClient ? Number(localStorage.getItem('completedCount') || 0) : 0
   const totalSessionLength = isClient ? Number(localStorage.getItem('totalSessionLength') || 0) : 0
 
-  // 👈 2. Extraction en temps réel de TOUS les feedbacks de ton téléphone
+  // Extraction en temps réel de tous les feedbacks du téléphone
   const allAppFeedbacks: FeedbackEntry[] = isClient 
     ? JSON.parse(localStorage.getItem('chess-trainer:feedback') || '[]') 
     : []
 
-   // 🛠️ NOUVEAU CODE INFAILLIBLE : On se base sur l'existence réelle du chapitre
-   const chapter = session[index]
-  
-   // La session n'est réellement finie que s'il n'y a plus aucun chapitre physique 
-   // disponible dans la liste à l'index courant
-   const finished = !chapter
- 
-   // On isole l'historique de ce chapitre précis pour l'envoyer au simulateur
-   const currentChapterFeedbacks = chapter 
-     ? allAppFeedbacks.filter((f) => f.study === chapter.study && f.chapter === chapter.chapter)
-     : []
+  // 🛠️ FIX SECU ANTI-ÉJECTION : On se base uniquement sur l'existence réelle du chapitre courant
+  const chapter = session[index]
+  const finished = !chapter
 
-  // On isole l'historique de ce chapitre précis pour l'envoyer au simulateur
+  // Extraction de l'historique du chapitre courant pour le simulateur (Une seule fois !)
   const currentChapterFeedbacks = chapter 
     ? allAppFeedbacks.filter((f) => f.study === chapter.study && f.chapter === chapter.chapter)
     : []
@@ -185,10 +177,8 @@ export function TrainingView({ session, pgnChapters, onAddFeedback, onExit }: Tr
             )}
             &nbsp;?
           </p>
-          {/* 👈 3. MODIFICATION DE LA GRILLE DES BOUTONS AVEC LABELS DOUBLE LIGNE */}
           <div className="flex w-full flex-wrap justify-center gap-2">
             {FEEDBACK_BUTTONS.map(({ level, className }) => {
-              // On calcule dynamiquement la prédiction de temps pour ce bouton
               const predictedInterval = simulateNextIntervalStr(currentChapterFeedbacks, level)
 
               return (
