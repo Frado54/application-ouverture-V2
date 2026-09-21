@@ -179,15 +179,24 @@ export default function Page() {
     const totalFaitDuJour = completedCount
     const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
   
-    // 🎯 SÉCURITÉ CHOC : Si tu n'as pas encore fait de chapitre aujourd'hui (totalFaitDuJour === 0),
-    // on force toutes les lignes du résumé du Dashboard à afficher "0 faits" pour briser le cache d'hier !
-    const cleanedSummary = summaryList.map((block) => {
-      if (totalFaitDuJour === 0) {
-        return {
-          ...block,
-          initialDueCount: block.dueCount, // Fige le total sur ce qu'il reste à faire à blanc
-        }
+    //   // 🛠️ ALIGNEMENT CHIRURGICAL DES COMPTEURS DU MATIN (app/page.tsx)
+  const summaryList = summary || []
+  const totalRestantDuJour = session.length
+  const totalFaitDuJour = completedCount
+  const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+
+  // 🎯 RECALIBRAGE DES BLOCS : On s'assure que le total affiché par bloc 
+  // correspond uniquement aux chapitres DUS AUJOURD'HUI (dueCount) et pas au stock complet
+  const cleanedSummary = summaryList.map((block) => {
+    if (totalFaitDuJour === 0) {
+      return {
+        ...block,
+        initialDueCount: block.dueCount, // Se cale strictly sur les variantes dues aujourd'hui
       }
+    }
+    return block
+  })
+
       return block
     })
   
