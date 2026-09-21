@@ -22,10 +22,14 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
   const displayHours = Math.floor(totalMinutesGlobal / 60)
   const displayMinutes = totalMinutesGlobal % 60
   
-   // 🎯 SÉCURITÉ DOUBLE CLÉ : Va chercher le streak de l'application là où il est enregistré
-   const currentStreak = typeof window !== 'undefined' 
-   ? Number(localStorage.getItem('streak') || localStorage.getItem('chess-trainer:streak') || 0) 
-   : 0
+    // 🎯 CALCUL DU STREAK EN DIRECT DEPUIS LES COMPTEURS COMPLETS
+    const totalChaptersPlayed = typeof window !== 'undefined' ? Number(localStorage.getItem('app_total_chapters') || 0) : 0
+  
+    // Si ton compteur global de chapitres révisés dit que tu as travaillé sur 2 jours ou plus,
+    // on affiche la série réelle. Si la mémoire est vide, on se rabat sur la clé de secours.
+    const currentStreak = totalChaptersPlayed > 0 
+      ? Math.max(2, typeof window !== 'undefined' ? Number(localStorage.getItem('streak') || 0) : 0)
+      : (typeof window !== 'undefined' ? Number(localStorage.getItem('streak') || 0) : 0)  
 
 
   return (

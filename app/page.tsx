@@ -173,24 +173,39 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-  // MATHEMATIQUES DE L'AFFICHAGE DU DASHBOARD
-  const summaryList = summary || []
-  const totalRestantDuJour = session.length
-  const totalInitialDuJour = completedCount + totalRestantDuJour
+    // 🛠️ ALIGNEMENT CHIRURGICAL ET IMMUABLE DES COMPTEURS
+    const summaryList = summary || []
+    const totalRestantDuJour = session.length
+    const totalFaitDuJour = completedCount
+    const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+  
+    // 🎯 SÉCURITÉ CHOC : Si tu n'as pas encore fait de chapitre aujourd'hui (totalFaitDuJour === 0),
+    // on force toutes les lignes du résumé du Dashboard à afficher "0 faits" pour briser le cache d'hier !
+    const cleanedSummary = summaryList.map((block) => {
+      if (totalFaitDuJour === 0) {
+        return {
+          ...block,
+          initialDueCount: block.dueCount, // Fige le total sur ce qu'il reste à faire à blanc
+        }
+      }
+      return block
+    })
+  
 
   return (
     <div className="min-h-svh bg-background pb-24">
-      {activeTab === 'aujourdhui' && (
+            {activeTab === 'aujourdhui' && (
         <DashboardView 
           session={session} 
-          summary={summaryList} 
+          summary={cleanedSummary} // 👈 ON PASSE LA LISTE NETTOYÉE ICI
           onStart={handleStart}
           forcedStats={{
-            fait: completedCount,
+            fait: totalFaitDuJour,
             total: totalInitialDuJour
           }}
         />
       )}
+
       
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">
