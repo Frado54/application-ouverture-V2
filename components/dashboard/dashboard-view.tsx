@@ -22,8 +22,11 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
   const displayHours = Math.floor(totalMinutesGlobal / 60)
   const displayMinutes = totalMinutesGlobal % 60
   
-  // 🎯 FIX DU STREAK SÉCURISÉ : On pointe sur la clé 'streak' partagée
-  const currentStreak = typeof window !== 'undefined' ? Number(localStorage.getItem('streak') || 0) : 0
+   // 🎯 SÉCURITÉ DOUBLE CLÉ : Va chercher le streak de l'application là où il est enregistré
+   const currentStreak = typeof window !== 'undefined' 
+   ? Number(localStorage.getItem('streak') || localStorage.getItem('chess-trainer:streak') || 0) 
+   : 0
+
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 text-foreground animate-fade-in">

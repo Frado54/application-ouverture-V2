@@ -52,40 +52,43 @@ export default function Page() {
   const [appTime, setAppTime] = useState<number>(0)
   const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
 
-  // 1. PREMIER CHARGEMENT ET NETTOYAGE DE MINUIT DIRECT SANS INTERFÉRENCE
-  useEffect(() => {
-    if (isClient) {
-      setMounted(true)
-
-      // Calcul de la date locale de France
-      const tzOffset = new Date().getTimezoneOffset() * 60000
-      const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
-      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
-
-      // Récupération des stats cumulées globales
-      setAppChapters(Number(localStorage.getItem('app_total_chapters') || 0))
-      setAppErrors(Number(localStorage.getItem('app_total_errors') || 0))
-      setAppTime(Number(localStorage.getItem('app_total_time') || 0))
-
-      if (dateDernierNettoyage !== localISODate) {
-        // C'est un nouveau jour : RAZ totale de la jauge quotidienne obligatoire
-        localStorage.setItem('completedCount', '0')
-        setCompletedCount(0)
-
-        // Nettoyage complet des verrous initials
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-        localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
-        localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
-        localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
-        localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
-        
-        localStorage.setItem('chess-trainer:last-clear-date', localISODate)
-      } else {
-        // Même journée : on reprend l'avancement là où on s'était arrêté
-        setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
+    // 🛠️ NETTOYAGE MATINAL COMPLET ET ÉTANCHE DE TOUS LES BLOCS
+    useEffect(() => {
+      if (isClient) {
+        setMounted(true)
+  
+        const tzOffset = new Date().getTimezoneOffset() * 60000
+        const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
+        const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+  
+        setAppChapters(Number(localStorage.getItem('app_total_chapters') || 0))
+        setAppErrors(Number(localStorage.getItem('app_total_errors') || 0))
+        setAppTime(Number(localStorage.getItem('app_total_time') || 0))
+  
+        if (dateDernierNettoyage !== localISODate) {
+          // 1. Reset de la jauge
+          localStorage.setItem('completedCount', '0')
+          setCompletedCount(0)
+  
+          // 2. PURGE ABSOLUE : On efface TOUTES les clés de blocs (avec et sans accents)
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ABSOLUE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ÉLEVÉE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ELEVEE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ MOYENNE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE MOYENNE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ TRÈS FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE TRES FAIBLE')
+          
+          localStorage.setItem('chess-trainer:last-clear-date', localISODate)
+        } else {
+          setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
+        }
       }
-    }
-  }, [isClient])
+    }, [isClient])
+  
 
   // EXTRATION SRS DYNAMIQUE
   const { session, summary } = useMemo(() => {
