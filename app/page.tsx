@@ -173,13 +173,7 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-    // 🛠️ ALIGNEMENT CHIRURGICAL ET IMMUABLE DES COMPTEURS
-    const summaryList = summary || []
-    const totalRestantDuJour = session.length
-    const totalFaitDuJour = completedCount
-    const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
-  
-    //   // 🛠️ ALIGNEMENT CHIRURGICAL DES COMPTEURS DU MATIN (app/page.tsx)
+  // 🛠️ ALIGNEMENT CHIRURGICAL DES COMPTEURS DU MATIN (Nettoyé et sans doublons !)
   const summaryList = summary || []
   const totalRestantDuJour = session.length
   const totalFaitDuJour = completedCount
@@ -191,22 +185,18 @@ export default function Page() {
     if (totalFaitDuJour === 0) {
       return {
         ...block,
-        initialDueCount: block.dueCount, // Se cale strictly sur les variantes dues aujourd'hui
+        initialDueCount: block.dueCount, // Se cale strictement sur les variantes dues aujourd'hui
       }
     }
     return block
   })
 
-      return block
-    })
-  
-
   return (
     <div className="min-h-svh bg-background pb-24">
-            {activeTab === 'aujourdhui' && (
+      {activeTab === 'aujourdhui' && (
         <DashboardView 
           session={session} 
-          summary={cleanedSummary} // 👈 ON PASSE LA LISTE NETTOYÉE ICI
+          summary={cleanedSummary} // 👈 On passe le résumé recalibré et propre
           onStart={handleStart}
           forcedStats={{
             fait: totalFaitDuJour,
@@ -214,7 +204,6 @@ export default function Page() {
           }}
         />
       )}
-
       
       {activeTab === 'gerer' && (
         <div className="p-4 max-w-2xl mx-auto space-y-4">
