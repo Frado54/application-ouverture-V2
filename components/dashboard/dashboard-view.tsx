@@ -11,25 +11,22 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ session, summary, onStart, forcedStats }: DashboardViewProps) {
-  // Extraction des compteurs synchronisés depuis la racine
   const totalInitialDuJour = forcedStats ? forcedStats.total : session.length
   const totalRestantDuJour = session.length
   const totalFaitDuJour = forcedStats ? forcedStats.fait : 0
 
-  // Calcule le pourcentage réel de complétion de ta journée
   const pourcentageReel = totalInitialDuJour > 0 ? Math.round((totalFaitDuJour / totalInitialDuJour) * 100) : 0
 
-  // Retour au format Heures / Minutes propre
   const totalSeconds = typeof window !== 'undefined' ? Number(localStorage.getItem('app_total_time') || 0) : 0
   const totalMinutesGlobal = Math.round(totalSeconds / 60)
   const displayHours = Math.floor(totalMinutesGlobal / 60)
   const displayMinutes = totalMinutesGlobal % 60
   
-  const currentStreak = typeof window !== 'undefined' ? Number(localStorage.getItem('chess-trainer:streak') || 0) : 0
+  // 🎯 FIX DU STREAK SÉCURISÉ : On pointe sur la clé 'streak' partagée
+  const currentStreak = typeof window !== 'undefined' ? Number(localStorage.getItem('streak') || 0) : 0
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 text-foreground animate-fade-in">
-      {/* EN-TÊTE PROFILE */}
       <header className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Tableau de bord</p>
@@ -41,7 +38,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </header>
 
-      {/* BLOC CENTRAL : AVANCEMENT GLOBAL DE LA SESSION */}
       <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-[#121214] p-6 shadow-md flex items-center justify-between gap-4">
         <div className="space-y-2 z-10">
           <h2 className="text-base font-semibold text-zinc-200">Avancement du jour</h2>
@@ -58,7 +54,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
           </p>
         </div>
 
-        {/* CERCLE DE PROGRESSION VISUEL */}
         <div className="relative size-20 shrink-0 flex items-center justify-center">
           <svg className="size-full -rotate-90">
             <circle cx="40" cy="40" r="34" className="stroke-zinc-800 fill-none" strokeWidth="6" />
@@ -77,7 +72,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </div>
 
-      {/* BOUTON DE LANCEMENT DE SESSION DYNAMIQUE */}
       {totalRestantDuJour > 0 && (
         <button
           type="button"
@@ -89,7 +83,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </button>
       )}
 
-      {/* STATS RAPIDES (Temps de jeu converti) */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-sm">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Temps d&apos;étude</p>
@@ -106,18 +99,12 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
         </div>
       </div>
 
-      {/* 📊 PROGRES PAR BLOCS DYNAMIQUE (Fait / Initial Réels calculés sur les variables du matin) */}
       <div className="rounded-xl border border-zinc-800 bg-[#141416] p-5 space-y-3 shadow-sm">
         <h3 className="font-semibold text-sm text-zinc-400 uppercase tracking-wider">Progression par blocs</h3>
         
         <div className="divide-y divide-zinc-800/60">
           {summary?.map((block) => {
-            // Le total dû ce matin pour ce bloc précis
-            const totalDuBloc = block.initialDueCount && block.initialDueCount > 0 
-              ? block.initialDueCount 
-              : (block.dueCount || 0)
-            
-            // Le nombre fait aujourd'hui est le nombre initial du matin moins ce qu'il reste en attente
+            const totalDuBloc = block.initialDueCount && block.initialDueCount > 0 ? block.initialDueCount : (block.dueCount || 0)
             const faitDansCeBloc = Math.max(0, totalDuBloc - (block.dueCount || 0))
 
             return (
@@ -125,7 +112,6 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
                 <span className="text-sm font-medium text-zinc-300 capitalize">
                   {block.priority.toLowerCase().replace('priorité', '').trim()}
                 </span>
-                
                 <span className="text-sm font-mono font-bold text-zinc-400">
                   {totalDuBloc > 0 ? (
                     <>

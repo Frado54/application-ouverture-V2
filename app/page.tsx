@@ -20,7 +20,7 @@ export default function Page() {
   const isClient = typeof window !== 'undefined'
   const [mounted, setMounted] = useState(false)
 
-  // ÉTATS CLASSIQUES
+  // ÉTATS DE LA BASE DE DONNÉES
   const [revisionBlocks, setRevisionBlocks] = useState<RevisionPriorityBlock[]>(() => {
     if (isClient) { const stored = loadStoredRepertoire(); if (stored) return stored.revisionBlocks }
     return mockRevisionBlocks
@@ -38,61 +38,41 @@ export default function Page() {
     return { revision: '', feedback: '', pgn: '' }
   })
 
-  const [view, setView] = useState<'dashboard' | 'training'>(() => {
-    if (isClient) return (localStorage.getItem('trainingView') as 'dashboard' | 'training') || 'dashboard'
-    return 'dashboard'
-  })
+  // ÉTATS DE NAVIGATION ET SESSIONS
+  const [view, setView] = useState<'dashboard' | 'training'>('dashboard')
   const [activeTab, setActiveTab] = useState<AppTab>('aujourdhui')
-  const [activeSession, setActiveSession] = useState<DueChapter[]>(() => {
-    if (isClient) {
-      const saved = localStorage.getItem('activeSession')
-      if (saved) { try { return JSON.parse(saved) } catch { return [] } }
-    }
-    return []
-  })
+  const [activeSession, setActiveSession] = useState<DueChapter[]>([])
 
-  // JAUGE DU JOUR
-  const [totalSessionLength, setTotalSessionLength] = useState<number>(() => {
-    if (isClient) { const saved = localStorage.getItem('totalSessionLength'); if (saved !== null) return Number(saved) }
-    return 0
-  })
-  const [completedCount, setCompletedCount] = useState<number>(() => {
-    if (isClient) { const saved = localStorage.getItem('completedCount'); if (saved !== null) return Number(saved) }
-    return 0
-  })
+  // JAUGE DU JOUR (COMPTEURS DE SESSIONS EN DIRECT)
+  const [completedCount, setCompletedCount] = useState<number>(0)
 
-  // NOUVEAUX COMPTEURS EXCLUSIFS À L'APPLICATION
-  const [appChapters, setAppChapters] = useState<number>(() => {
-    if (isClient) return Number(localStorage.getItem('app_total_chapters') || 0)
-    return 0
-  })
-  const [appErrors, setAppErrors] = useState<number>(() => {
-    if (isClient) return Number(localStorage.getItem('app_total_errors') || 0)
-    return 0
-  })
-  const [appTime, setAppTime] = useState<number>(() => {
-    if (isClient) return Number(localStorage.getItem('app_total_time') || 0)
-    return 0
-  })
-
-  // TOP DÉPART POUR CHRONOMÉTRER LE CHAPITRE EN COURS
+  // STATS CUMULÉES DE L'APPLICATION
+  const [appChapters, setAppChapters] = useState<number>(0)
+  const [appErrors, setAppErrors] = useState<number>(0)
+  const [appTime, setAppTime] = useState<number>(0)
   const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
 
-  useEffect(() => { setMounted(true) }, [])
-
-      // 🛠️ NETTOYAGE MATINAL INFAILLIBLE (Date Locale de France)
+  // 1. PREMIER CHARGEMENT ET NETTOYAGE DE MINUIT DIRECT SANS INTERFÉRENCE
   useEffect(() => {
     if (isClient) {
+      setMounted(true)
+
+      // Calcul de la date locale de France
       const tzOffset = new Date().getTimezoneOffset() * 60000
       const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
       const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
 
-      if (dateDernierNettoyage !== localISODate) {
-        localStorage.setItem('completedCount', '0')
-        localStorage.setItem('totalSessionLength', '0')
-        setCompletedCount(0)
-        setTotalSessionLength(0)
+      // Récupération des stats cumulées globales
+      setAppChapters(Number(localStorage.getItem('app_total_chapters') || 0))
+      setAppErrors(Number(localStorage.getItem('app_total_errors') || 0))
+      setAppTime(Number(localStorage.getItem('app_total_time') || 0))
 
+      if (dateDernierNettoyage !== localISODate) {
+        // C'est un nouveau jour : RAZ totale de la jauge quotidienne obligatoire
+        localStorage.setItem('completedCount', '0')
+        setCompletedCount(0)
+
+        // Nettoyage complet des verrous initials
         localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
         localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
         localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
@@ -100,32 +80,26 @@ export default function Page() {
         localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
         
         localStorage.setItem('chess-trainer:last-clear-date', localISODate)
+      } else {
+        // Même journée : on reprend l'avancement là où on s'était arrêté
+        setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
       }
     }
   }, [isClient])
 
-  
-
-  // FIX DE L'EXTRACTION : On récupère session ET summary de l'algorithme
+  // EXTRATION SRS DYNAMIQUE
   const { session, summary } = useMemo(() => {
     return buildSession(revisionBlocks, feedback)
   }, [revisionBlocks, feedback])
 
-  // PERSISTANCE DES COMPTEURS D'APPLICATION
+  // ENREGISTREMENT DES MISES À JOUR STRICTES (Uniquement si monté)
   useEffect(() => { if (mounted) localStorage.setItem('app_total_chapters', appChapters.toString()) }, [appChapters, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('app_total_errors', appErrors.toString()) }, [appErrors, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('app_total_time', appTime.toString()) }, [appTime, mounted])
-
-  // PERSISTANCE JAUGE DU JOUR
-  useEffect(() => { if (mounted) localStorage.setItem('totalSessionLength', totalSessionLength.toString()) }, [totalSessionLength, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
-  useEffect(() => { if (mounted) localStorage.setItem('trainingView', view) }, [view, mounted])
-  useEffect(() => { if (mounted) localStorage.setItem('activeSession', JSON.stringify(activeSession)) }, [activeSession, mounted])
 
   function handleStart() {
     setActiveSession(session)
-    setTotalSessionLength(session.length) 
-    setCompletedCount(0)                  
     setChapterStartTime(Date.now())
     setView('training')
   }
@@ -140,11 +114,17 @@ export default function Page() {
     setAppTime((prev) => prev + safeSeconds)
 
     setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
-    setCompletedCount((prev) => prev + 1)
+    
+    // Fait progresser la jauge locale et disque dur
+    setCompletedCount((prev) => {
+      const nextCount = prev + 1
+      localStorage.setItem('completedCount', nextCount.toString())
+      return nextCount
+    })
     
     setChapterStartTime(Date.now())
 
-    // Sécurité anti-éjection : on calcule le reliquat sur la pile active locale
+    // Défilement physique de la pile active
     const nextSessionStack = activeSession.slice(1)
     setActiveSession(nextSessionStack)
 
@@ -171,8 +151,9 @@ export default function Page() {
     setImportText(data.rawText)
     saveRepertoire({ revisionBlocks: data.revisionBlocks, feedback: data.feedback, pgnChapters: data.pgnChapters })
     saveRawImportText(data.rawText)
-    setTotalSessionLength(0)
+    
     setCompletedCount(0)
+    localStorage.setItem('completedCount', '0')
 
     if (isClient) {
       localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
@@ -189,19 +170,10 @@ export default function Page() {
     return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
   }
 
-    // 🛠️ ALIGNEMENT CHIRURGICAL ET CUMULATIF DES COMPTEURS
-    const summaryList = summary || []
-  
-    // 1. Le total initial est la somme STRICTE de tout ce qui était dû ce matin dans tous les blocs (ex: 58)
-    const totalInitialDuJour = summaryList.reduce((acc, curr) => acc + (curr.initialDueCount || 0), 0)
-    
-    // 2. Ce qu'il te reste à faire à la seconde près (décroît au fur et à mesure : 58, 57, 56...)
-    const totalRestantDuJour = session.length
-  
-    // 3. Le nombre fait aujourd'hui fait un VRAI calcul d'addition (ex: passe de 0 à 1, puis à 2)
-    const totalFaitDuJour = Math.max(0, totalInitialDuJour - totalRestantDuJour)
-  
-  
+  // MATHEMATIQUES DE L'AFFICHAGE DU DASHBOARD
+  const summaryList = summary || []
+  const totalRestantDuJour = session.length
+  const totalInitialDuJour = completedCount + totalRestantDuJour
 
   return (
     <div className="min-h-svh bg-background pb-24">
@@ -211,7 +183,7 @@ export default function Page() {
           summary={summaryList} 
           onStart={handleStart}
           forcedStats={{
-            fait: totalFaitDuJour,
+            fait: completedCount,
             total: totalInitialDuJour
           }}
         />
