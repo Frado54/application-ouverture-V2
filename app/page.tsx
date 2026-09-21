@@ -179,17 +179,36 @@ export default function Page() {
   const totalFaitDuJour = completedCount
   const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
 
-  // 🎯 RECALIBRAGE DES BLOCS : On s'assure que le total affiché par bloc 
-  // correspond uniquement aux chapitres DUS AUJOURD'HUI (dueCount) et pas au stock complet
+    // 🎯 RECALIBRAGE PERMANENT DES BLOCS (app/page.tsx)
+  // On force CHAQUE bloc à caler son total du matin (initialDueCount) 
+  // sur le nombre réel de chapitres calculés comme mûrs aujourd'hui par l'SRS.
   const cleanedSummary = summaryList.map((block) => {
-    if (totalFaitDuJour === 0) {
+    // Si la clé du matin n'existe pas encore ou qu'elle a été polluée par le stock global,
+    // on la verrouille strictement sur le pool des variantes dues aujourd'hui.
+    const realTodayDue = block.dueCount || 0
+    const savedInitial = typeof window !== 'undefined' ? localStorage.getItem(`chess-trainer:initial-due-${block.priority}`) : null
+    
+    // Règle d'or : le total affiché est le maximum entre ce qui est dû maintenant et ce qui a été mémorisé ce matin
+    const initialDueCountFixed = savedInitial !== null 
+      ? Math.max(realTodayDue, Number(savedInitial)) 
+      : realTodayDue
+
+    // SÉCURITÉ SÉRIEUSE : Si la session globale est terminée (totalRestantDuJour === 0),
+    // cela signifie que tu as tout nettoyé. Le nombre initial devient STRICTEMENT égal au nombre fait.
+    if (totalRestantDuJour === 0) {
       return {
         ...block,
-        initialDueCount: block.dueCount, // Se cale strictement sur les variantes dues aujourd'hui
+        initialDueCount: initialDueCountFixed,
+        dueCount: 0 // Plus aucune carte en attente
       }
     }
-    return block
+
+    return {
+      ...block,
+      initialDueCount: initialDueCountFixed
+    }
   })
+
 
   return (
     <div className="min-h-svh bg-background pb-24">
