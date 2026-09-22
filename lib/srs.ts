@@ -155,12 +155,11 @@ export function simulateNextIntervalStr(entries: FeedbackEntry[], level: Feedbac
   return `+${finalInterval}j`
 }
 
-// 🎯 TEST À BLANC : On triche en disant à la machine qu'on est demain (+1 jour)
 export function buildSession(
   blocks: RevisionPriorityBlock[],
   feedback: FeedbackEntry[],
-  today: Date = new Date(Date.now() + 24 * 60 * 60 * 1000), // 👈 La parenthèse doit rester uniquement ici
-  ): { session: DueChapter[]; summary: PriorityBlockSummary[] } { // 👈 Les deux-points ":" et l'accolade "{" sont réalignés
+  today: Date = new Date(),
+): { session: DueChapter[]; summary: PriorityBlockSummary[] } {
   const summary: PriorityBlockSummary[] = []
   let allDueSessions: DueChapter[] = []
 
