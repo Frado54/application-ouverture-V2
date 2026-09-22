@@ -160,7 +160,7 @@ export function buildSession(
   blocks: RevisionPriorityBlock[],
   feedback: FeedbackEntry[],
   today: Date = new Date(Date.now() + 24 * 60 * 60 * 1000), 
-) { session: DueChapter[]; summary: PriorityBlockSummary[] } {
+  { session: DueChapter[]; summary: PriorityBlockSummary[] } {
   const summary: PriorityBlockSummary[] = []
   let allDueSessions: DueChapter[] = []
 
