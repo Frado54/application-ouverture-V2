@@ -1,6 +1,6 @@
 // public/sw.js
-const NOTIFICATION_HOUR = 10; // Alerte fixe à 10h00
 
+// Écouteur standard d'installation
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -9,20 +9,19 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Écouteur de messages et vérification d'horloge native
+// ÉCOUTEUR MATÉRIEL D'ARRIÈRE-PLAN DE SECOURS
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'daily-chess-reminder') {
+    event.waitUntil(triggerReminder());
+  }
+});
+
+// Réception de messages depuis les onglets ou les boutons de tests
 self.addEventListener('message', (event) => {
   if (event.data && event.data.action === 'check-schedule') {
     triggerReminder();
   }
 });
-
-// Boucle de vérification d'arrière-plan autonome (S'exécute toutes les 30 minutes)
-setInterval(() => {
-  const currentHour = new Date().getHours();
-  if (currentHour === NOTIFICATION_HOUR) {
-    triggerReminder();
-  }
-}, 1800000);
 
 async function triggerReminder() {
   await self.registration.showNotification("♟️ Entraînement disponible", {
@@ -34,6 +33,7 @@ async function triggerReminder() {
   });
 }
 
+// Gestion du clic pour ouvrir ou maximiser l'application
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
