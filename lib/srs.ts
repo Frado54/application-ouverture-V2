@@ -159,8 +159,8 @@ export function simulateNextIntervalStr(entries: FeedbackEntry[], level: Feedbac
 export function buildSession(
   blocks: RevisionPriorityBlock[],
   feedback: FeedbackEntry[],
-  today: Date = new Date(Date.now() + 24 * 60 * 60 * 1000), 
-  { session: DueChapter[]; summary: PriorityBlockSummary[] } {
+  today: Date = new Date(Date.now() + 24 * 60 * 60 * 1000), // 👈 La parenthèse doit rester uniquement ici
+  ): { session: DueChapter[]; summary: PriorityBlockSummary[] } { // 👈 Les deux-points ":" et l'accolade "{" sont réalignés
   const summary: PriorityBlockSummary[] = []
   let allDueSessions: DueChapter[] = []
 
