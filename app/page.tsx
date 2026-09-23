@@ -47,9 +47,18 @@ export default function Page() {
   const [completedCount, setCompletedCount] = useState<number>(0)
 
   // STATS CUMULÉES DE L'APPLICATION
-  const [appChapters, setAppChapters] = useState<number>(0)
-  const [appErrors, setAppErrors] = useState<number>(0)
-  const [appTime, setAppTime] = useState<number>(0)
+  const [appChapters, setAppChapters] = useState<number>(() => {
+    if (typeof window !== 'undefined') return Number(localStorage.getItem('app_total_chapters') || 0)
+    return 0
+  })
+  const [appErrors, setAppErrors] = useState<number>(() => {
+    if (typeof window !== 'undefined') return Number(localStorage.getItem('app_total_errors') || 0)
+    return 0
+  })
+  const [appTime, setAppTime] = useState<number>(() => {
+    if (typeof window !== 'undefined') return Number(localStorage.getItem('app_total_time') || 0)
+    return 0
+  })
   const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
 
     // 🛠️ NETTOYAGE MATINAL COMPLET ET ÉTANCHE DE TOUS LES BLOCS
@@ -96,9 +105,6 @@ export default function Page() {
   }, [revisionBlocks, feedback])
 
   // ENREGISTREMENT DES MISES À JOUR STRICTES (Uniquement si monté)
-  useEffect(() => { if (mounted) localStorage.setItem('app_total_chapters', appChapters.toString()) }, [appChapters, mounted])
-  useEffect(() => { if (mounted) localStorage.setItem('app_total_errors', appErrors.toString()) }, [appErrors, mounted])
-  useEffect(() => { if (mounted) localStorage.setItem('app_total_time', appTime.toString()) }, [appTime, mounted])
   useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
 
   function handleStart() {
