@@ -170,79 +170,89 @@ export default function Page() {
   }
 
     // 🛠️ COMPATIBILITÉ UNIVERSELLE DE L'IMPORTATION JSON (app/page.tsx)
-    function handleImport(rawData: any) {
-      if (typeof window === 'undefined') return
-      const storageSource = rawData?.localStorage ? rawData.localStorage : rawData
-  
-      let parsedBlocks: RevisionPriorityBlock[] = []
-      const repValue = storageSource["chess-trainer:repertoire"] || storageSource["revisionBlocks"]
-      if (repValue) {
-        if (typeof repValue === 'string') {
-          try { parsedBlocks = JSON.parse(repValue) } catch (e) { console.error(e) }
-        } else { parsedBlocks = repValue }
-      }
-  
-      let parsedFeedback: FeedbackEntry[] = []
-      const feedValue = storageSource["chess-trainer:feedback"] || storageSource["feedback"]
-      if (feedValue) {
-        if (typeof feedValue === 'string') {
-          try { parsedFeedback = JSON.parse(feedValue) } catch (e) { console.error(e) }
-        } else { parsedFeedback = feedValue }
-      }
-  
-      let parsedPgn: Record<string, PgnChapter> = {}
-      const pgnValue = storageSource["chess-trainer:pgn-chapters"] || storageSource["pgnChapters"]
-      if (pgnValue) {
-        if (typeof pgnValue === 'string') {
-          try { parsedPgn = JSON.parse(pgnValue) } catch (e) { console.error(e) }
-        } else { parsedPgn = pgnValue }
-      }
-  
-      const rawTextValue = storageSource["chess-trainer:raw-revision-text"] || ""
-      const rawFeedbackTextValue = storageSource["chess-trainer:raw-feedback-text"] || ""
-      const rawPgnTextValue = storageSource["chess-trainer:raw-pgn-text"] || ""
-  
-      const importedChapters = Number(storageSource["app_total_chapters"] || parsedFeedback.length || 0)
-      const importedErrors = Number(storageSource["app_total_errors"] || 0)
-      const importedTime = Number(storageSource["app_total_time"] || storageSource["totalTimeInSeconds"] || 0)
-      const importedStreak = Number(rawData["streak"] || storageSource["streak"] || 0)
-      const savedCompleted = Number(storageSource["completedCount"] || 0)
-  
-      setRevisionBlocks(parsedBlocks.length > 0 ? parsedBlocks : mockRevisionBlocks)
-      setFeedback(parsedFeedback)
-      setPgnChapters(parsedPgn)
-      setImportText({
-        revision: rawTextValue,
-        feedback: rawFeedbackTextValue,
-        pgn: rawPgnTextValue
-      })
-      
-      setCompletedCount(savedCompleted)
-      setAppChapters(importedChapters)
-      setAppErrors(importedErrors)
-      setAppTime(importedTime)
-  
-      localStorage.setItem('chess-trainer:repertoire', JSON.stringify(parsedBlocks))
-      localStorage.setItem('chess-trainer:feedback', JSON.stringify(parsedFeedback))
-      localStorage.setItem('chess-trainer:pgn-chapters', JSON.stringify(parsedPgn))
-      localStorage.setItem('chess-trainer:raw-revision-text', rawTextValue)
-      localStorage.setItem('chess-trainer:raw-feedback-text', rawFeedbackTextValue)
-      localStorage.setItem('chess-trainer:raw-pgn-text', rawPgnTextValue)
-      
-      localStorage.setItem('app_total_chapters', importedChapters.toString())
-      localStorage.setItem('app_total_errors', importedErrors.toString())
-      localStorage.setItem('app_total_time', importedTime.toString())
-      localStorage.setItem('streak', importedStreak.toString())
-      localStorage.setItem('completedCount', savedCompleted.toString())
-  
-      localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-      localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
-      localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
-      localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
-      localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
-  
-      toast.success('🎉 Repertoire et 1051 feedbacks restaurés avec succès !')
+      // 🛠️ SYNCHRONISATION ABSOLUE ET MIROIR DES BLOCS (app/page.tsx)
+  function handleImport(rawData: any) {
+    if (typeof window === 'undefined') return
+
+    const storageSource = rawData?.localStorage ? rawData.localStorage : rawData
+
+    // 1. Décodage du répertoire d'ouvertures
+    let parsedBlocks: RevisionPriorityBlock[] = []
+    const repValue = storageSource["chess-trainer:repertoire"] || storageSource["revisionBlocks"]
+    if (repValue) {
+      if (typeof repValue === 'string') {
+        try { parsedBlocks = JSON.parse(repValue) } catch (e) { console.error(e) }
+      } else { parsedBlocks = repValue }
     }
+
+    // 2. Décodage des feedbacks historiques
+    let parsedFeedback: FeedbackEntry[] = []
+    const feedValue = storageSource["chess-trainer:feedback"] || storageSource["feedback"]
+    if (feedValue) {
+      if (typeof feedValue === 'string') {
+        try { parsedFeedback = JSON.parse(feedValue) } catch (e) { console.error(e) }
+      } else { parsedFeedback = feedValue }
+    }
+
+    // 3. Décodage des PGNS
+    let parsedPgn: Record<string, PgnChapter> = {}
+    const pgnValue = storageSource["chess-trainer:pgn-chapters"] || storageSource["pgnChapters"]
+    if (pgnValue) {
+      if (typeof pgnValue === 'string') {
+        try { parsedPgn = JSON.parse(pgnValue) } catch (e) { console.error(e) }
+      } else { parsedPgn = pgnValue }
+    }
+
+    const rawTextValue = storageSource["chess-trainer:raw-revision-text"] || ""
+    const rawFeedbackTextValue = storageSource["chess-trainer:raw-feedback-text"] || ""
+    const rawPgnTextValue = storageSource["chess-trainer:raw-pgn-text"] || ""
+
+    const importedChapters = Number(storageSource["app_total_chapters"] || parsedFeedback.length || 0)
+    const importedErrors = Number(storageSource["app_total_errors"] || 0)
+    const importedTime = Number(storageSource["app_total_time"] || storageSource["totalTimeInSeconds"] || 0)
+    const importedStreak = Number(rawData["streak"] || storageSource["streak"] || 0)
+    const savedCompleted = Number(storageSource["completedCount"] || 0)
+
+    // 🔥 APPLICATION DES VARIABLES SUR LES ÉTATS VIVANTS
+    setRevisionBlocks(parsedBlocks.length > 0 ? parsedBlocks : mockRevisionBlocks)
+    setFeedback(parsedFeedback)
+    setPgnChapters(parsedPgn)
+    setImportText({
+      revision: rawTextValue,
+      feedback: rawFeedbackTextValue,
+      pgn: rawPgnTextValue
+    })
+    
+    setCompletedCount(savedCompleted)
+    setAppChapters(importedChapters)
+    setAppErrors(importedErrors)
+    setAppTime(importedTime)
+
+    // 💾 SAUVEGARDE ET CLONAGE DES CLÉS COMPTEURS SUR LE PC
+    localStorage.setItem('chess-trainer:repertoire', JSON.stringify(parsedBlocks))
+    localStorage.setItem('chess-trainer:feedback', JSON.stringify(parsedFeedback))
+    localStorage.setItem('chess-trainer:pgn-chapters', JSON.stringify(parsedPgn))
+    localStorage.setItem('chess-trainer:raw-revision-text', rawTextValue)
+    localStorage.setItem('chess-trainer:raw-feedback-text', rawFeedbackTextValue)
+    localStorage.setItem('chess-trainer:raw-pgn-text', rawPgnTextValue)
+    
+    localStorage.setItem('app_total_chapters', importedChapters.toString())
+    localStorage.setItem('app_total_errors', importedErrors.toString())
+    localStorage.setItem('app_total_time', importedTime.toString())
+    localStorage.setItem('streak', importedStreak.toString())
+    localStorage.setItem('completedCount', savedCompleted.toString())
+
+    // 🎯 RECOPIE DIRECTE DES VERROUS DU MATIN DEPUIS LE TÉLÉPHONE (Garantit le miroir parfait !)
+    const priorities = ['PRIORITÉ ABSOLUE', 'PRIORITÉ ÉLEVÉE', 'PRIORITÉ MOYENNE', 'PRIORITÉ FAIBLE', 'PRIORITÉ TRÈS FAIBLE', 'PRIORITE ABSOLUE', 'PRIORITE ELEVEE', 'PRIORITE MOYENNE', 'PRIORITE FAIBLE', 'PRIORITE TRES FAIBLE']
+    priorities.forEach((p) => {
+      const key = `chess-trainer:initial-due-${p}`
+      if (storageSource[key]) {
+        localStorage.setItem(key, storageSource[key].toString())
+      }
+    })
+
+    toast.success('🎉 Repertoire et briques du matin synchronisés avec succès !')
+  }
   
     if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
   
