@@ -273,8 +273,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             <Button             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder={'Étude;chapitre;niveau;date;erreurs'}
             className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
-          />
-        </Field>
+          </Field>
 
         {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
         <Field>
