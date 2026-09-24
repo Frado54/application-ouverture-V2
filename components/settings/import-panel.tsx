@@ -25,6 +25,9 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   const [feedbackText, setFeedbackText] = useState(initialText.feedback)
   const [pgnText, setPgnText] = useState(initialText.pgn)
   const [isLoadingPgn, setIsLoadingPgn] = useState(false)
+  
+  // 🎯 CAPTURE DU PAQUET GLISSÉ : Conserve l'enveloppe JSON pour écraser les stats du PC
+  const [backupPayload, setBackupPayload] = useState<any>(null)
 
   useEffect(() => {
     setRevisionText(initialText.revision)
@@ -104,14 +107,20 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         }
       }
 
-      onImport({
-        revisionBlocks: revisionResult.data,
-        feedback: finalFeedback,
-        pgnChapters,
-        rawText: { revision: revisionText, feedback: feedbackText, pgn: "" },
-      })
+      // 🎯 TRANSMISSION STRICTE : Si un JSON a été injecté, on l'envoie à la racine pour les stats globales
+      if (backupPayload) {
+        onImport(backupPayload)
+      } else {
+        onImport({
+          revisionBlocks: revisionResult.data,
+          feedback: finalFeedback,
+          pgnChapters,
+          rawText: { revision: revisionText, feedback: feedbackText, pgn: "" },
+        })
+      }
 
       toast.success('Répertoire initialisé et sauvegardé avec succès !')
+      setBackupPayload(null) // Reset après validation
     } catch (err) {
       console.error(err)
       toast.error("Le traitement a échoué lors de l'analyse.")
@@ -148,12 +157,14 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
           return
         }
 
+        // Mémorisation pour la fonction handleSave
+        setBackupPayload(backup)
+
         const localData = backup.localStorage
         setRevisionText(localData['chess-trainer:raw-revision-text'] || '')
         setFeedbackText(localData['chess-trainer:raw-feedback-text'] || '')
         setPgnText(localData['chess-trainer:raw-pgn-text'] || '')
 
-        // 🛠️ CORRECTIF : On écrit directement la mémoire brute dans le PC pour forcer la synchro
         Object.keys(localData).forEach((key) => {
           localStorage.setItem(key, localData[key])
         })
@@ -259,6 +270,38 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             </Button>
 
             {/* 2. BOUTON ORANGE (Sauvegarder) */}
+            <Button             onChange={(e) => setFeedbackText(e.target.value)}
+            placeholder={'Étude;chapitre;niveau;date;erreurs'}
+            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
+          />
+        </Field>
+
+        {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
+        <Field>
+          <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
+          <FieldDescription>
+            Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
+          </FieldDescription>
+          
+          <div className="mt-4 flex flex-col items-center gap-4 w-full">
+            {/* 1. BOUTON BLEU (Charger PGN) */}
+            <Button
+              type="button"
+              onClick={handleLoadLocalPgn}
+              disabled={isLoadingPgn}
+              className="w-full h-auto min-h-12 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-xs sm:text-sm md:text-base text-center transition-colors whitespace-normal break-words shadow-md"
+            >
+              {isLoadingPgn ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-full animate-spin" />
+                  Traitement des 400 Mo...
+                </>
+              ) : (
+                "Charger toutes_les_ouvertures.txt depuis le dossier public"
+              )}
+            </Button>
+
+            {/* 2. BOUTON ORANGE (Sauvegarder) */}
             <Button
               type="button"
               onClick={handleSave}
@@ -268,7 +311,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               Sauvegarder et Initialiser mon Répertoire
             </Button>
 
-            {/* 🛠️ RECONSTRUCTION DE TA GRILLE DE SYNCHRONISATION JSON MANQUANTE */}
+            {/* GRILLE DE SYNCHRONISATION JSON */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               {/* 3. BOUTON EXPORTER (.JSON) */}
               <Button
@@ -298,3 +341,5 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
     </div>
   )
 }
+
+  
