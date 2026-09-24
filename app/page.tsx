@@ -46,7 +46,7 @@ export default function Page() {
   // JAUGE DU JOUR (COMPTEURS DE SESSIONS EN DIRECT)
   const [completedCount, setCompletedCount] = useState<number>(0)
 
-  // STATS CUMULÉES DE L'APPLICATION
+  // STATS CUMULÉES DE L'APPLICATION (Lecture directe et sécurisée du disque dur)
   const [appChapters, setAppChapters] = useState<number>(() => {
     if (typeof window !== 'undefined') return Number(localStorage.getItem('app_total_chapters') || 0)
     return 0
@@ -61,51 +61,74 @@ export default function Page() {
   })
   const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
 
-    // 🛠️ NETTOYAGE MATINAL COMPLET ET ÉTANCHE DE TOUS LES BLOCS
-    useEffect(() => {
-      if (isClient) {
-        setMounted(true)
-  
-        const tzOffset = new Date().getTimezoneOffset() * 60000
-        const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
-        const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
-  
-        setAppChapters(Number(localStorage.getItem('app_total_chapters') || 0))
-        setAppErrors(Number(localStorage.getItem('app_total_errors') || 0))
-        setAppTime(Number(localStorage.getItem('app_total_time') || 0))
-  
-        if (dateDernierNettoyage !== localISODate) {
-          // 1. Reset de la jauge
-          localStorage.setItem('completedCount', '0')
-          setCompletedCount(0)
-  
-          // 2. PURGE ABSOLUE : On efface TOUTES les clés de blocs (avec et sans accents)
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ABSOLUE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ÉLEVÉE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ELEVEE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ MOYENNE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITE MOYENNE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ FAIBLE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITE FAIBLE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ TRÈS FAIBLE')
-          localStorage.removeItem('chess-trainer:initial-due-PRIORITE TRES FAIBLE')
-          
-          localStorage.setItem('chess-trainer:last-clear-date', localISODate)
-        } else {
-          setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
-        }
-      }
-    }, [isClient])
-  
+  // 🛠️ NETTOYAGE MATINAL COMPLET ET ÉTANCHE DE TOUS LES BLOCS
+  useEffect(() => {
+    if (isClient) {
+      setMounted(true)
 
-  // EXTRATION SRS DYNAMIQUE
+      const tzOffset = new Date().getTimezoneOffset() * 60000
+      const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
+      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+
+      if (dateDernierNettoyage !== localISODate) {
+        // 1. Reset de la jauge quotidienne
+        localStorage.setItem('completedCount', '0')
+        setCompletedCount(0)
+
+        // 2. PURGE ABSOLUE : On efface les verrous initials d'hier pour forcer le recalcul à blanc
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITE ABSOLUE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ÉLEVÉE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITE ELEVEE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ MOYENNE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITE MOYENNE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ FAIBLE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITE FAIBLE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ TRÈS FAIBLE')
+        localStorage.removeItem('chess-trainer:initial-due-PRIORITE TRES FAIBLE')
+        
+        localStorage.setItem('chess-trainer:last-clear-date', localISODate)
+      } else {
+        setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
+      }
+    }
+  }, [isClient])
+
+  // EXTRACTION SRS DYNAMIQUE
   const { session, summary } = useMemo(() => {
     return buildSession(revisionBlocks, feedback)
   }, [revisionBlocks, feedback])
 
-  // ENREGISTREMENT DES MISES À JOUR STRICTES (Uniquement si monté)
-  useEffect(() => { if (mounted) localStorage.setItem('completedCount', completedCount.toString()) }, [completedCount, mounted])
+  // 🎯 SAUVEGARDE STRICTE DES COMPTEURS HISTORIQUES (Brident l'écriture des zéros !)
+  useEffect(() => { 
+    if (mounted && appChapters > 0) {
+      localStorage.setItem('app_total_chapters', appChapters.toString()) 
+    }
+  }, [appChapters, mounted])
+
+  useEffect(() => { 
+    if (mounted && appErrors > 0) {
+      localStorage.setItem('app_total_errors', appErrors.toString()) 
+    }
+  }, [appErrors, mounted])
+
+  useEffect(() => { 
+    if (mounted && appTime > 0) {
+      localStorage.setItem('app_total_time', appTime.toString()) 
+    }
+  }, [appTime, mounted])
+
+  useEffect(() => { 
+    if (mounted) {
+      const tzOffset = new Date().getTimezoneOffset() * 60000
+      const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
+      const lastClear = localStorage.getItem('chess-trainer:last-clear-date')
+      
+      if (lastClear === localISODate) {
+        localStorage.setItem('completedCount', completedCount.toString())
+      }
+    }
+  }, [completedCount, mounted])
 
   function handleStart() {
     setActiveSession(session)
@@ -124,7 +147,6 @@ export default function Page() {
 
     setFeedback((prev) => { const next = [...prev, entry]; saveFeedback(next); return next })
     
-    // Fait progresser la jauge locale et disque dur
     setCompletedCount((prev) => {
       const nextCount = prev + 1
       localStorage.setItem('completedCount', nextCount.toString())
@@ -133,7 +155,6 @@ export default function Page() {
     
     setChapterStartTime(Date.now())
 
-    // Défilement physique de la pile active
     const nextSessionStack = activeSession.slice(1)
     setActiveSession(nextSessionStack)
 
@@ -149,175 +170,141 @@ export default function Page() {
   }
 
     // 🛠️ COMPATIBILITÉ UNIVERSELLE DE L'IMPORTATION JSON (app/page.tsx)
-      // 🛠️ DÉCODEUR UNIVERSEL DE SECOURS ANTI-CRASH JSON (app/page.tsx)
-  function handleImport(rawData: any) {
-    if (typeof window === 'undefined') return
-
-    // 1. Détermination de la source (localStorage interne ou racine)
-    const storageSource = rawData?.localStorage ? rawData.localStorage : rawData
-
-    // 2. Décodage sécurisé du répertoire d'ouvertures
-    let parsedBlocks: RevisionPriorityBlock[] = []
-    const repValue = storageSource["chess-trainer:repertoire"] || storageSource["revisionBlocks"]
-    if (repValue) {
-      if (typeof repValue === 'string') {
-        try { parsedBlocks = JSON.parse(repValue) } catch (e) { console.error(e) }
-      } else {
-        parsedBlocks = repValue
+    function handleImport(rawData: any) {
+      if (typeof window === 'undefined') return
+      const storageSource = rawData?.localStorage ? rawData.localStorage : rawData
+  
+      let parsedBlocks: RevisionPriorityBlock[] = []
+      const repValue = storageSource["chess-trainer:repertoire"] || storageSource["revisionBlocks"]
+      if (repValue) {
+        if (typeof repValue === 'string') {
+          try { parsedBlocks = JSON.parse(repValue) } catch (e) { console.error(e) }
+        } else { parsedBlocks = repValue }
       }
-    }
-
-    // 3. Décodage sécurisé de tes 1 051 feedbacks historiques
-    let parsedFeedback: FeedbackEntry[] = []
-    const feedValue = storageSource["chess-trainer:feedback"] || storageSource["feedback"]
-    if (feedValue) {
-      if (typeof feedValue === 'string') {
-        try { parsedFeedback = JSON.parse(feedValue) } catch (e) { console.error(e) }
-      } else {
-        parsedFeedback = feedValue
+  
+      let parsedFeedback: FeedbackEntry[] = []
+      const feedValue = storageSource["chess-trainer:feedback"] || storageSource["feedback"]
+      if (feedValue) {
+        if (typeof feedValue === 'string') {
+          try { parsedFeedback = JSON.parse(feedValue) } catch (e) { console.error(e) }
+        } else { parsedFeedback = feedValue }
       }
-    }
-
-    // 4. Décodage sécurisé de la cartographie des variantes (pgnChapters)
-    let parsedPgn: Record<string, PgnChapter> = {}
-    const pgnValue = storageSource["chess-trainer:pgn-chapters"] || storageSource["pgnChapters"]
-    if (pgnValue) {
-      if (typeof pgnValue === 'string') {
-        try { parsedPgn = JSON.parse(pgnValue) } catch (e) { console.error(e) }
-      } else {
-        parsedPgn = pgnValue
+  
+      let parsedPgn: Record<string, PgnChapter> = {}
+      const pgnValue = storageSource["chess-trainer:pgn-chapters"] || storageSource["pgnChapters"]
+      if (pgnValue) {
+        if (typeof pgnValue === 'string') {
+          try { parsedPgn = JSON.parse(pgnValue) } catch (e) { console.error(e) }
+        } else { parsedPgn = pgnValue }
       }
+  
+      const rawTextValue = storageSource["chess-trainer:raw-revision-text"] || ""
+      const rawFeedbackTextValue = storageSource["chess-trainer:raw-feedback-text"] || ""
+      const rawPgnTextValue = storageSource["chess-trainer:raw-pgn-text"] || ""
+  
+      const importedChapters = Number(storageSource["app_total_chapters"] || parsedFeedback.length || 0)
+      const importedErrors = Number(storageSource["app_total_errors"] || 0)
+      const importedTime = Number(storageSource["app_total_time"] || storageSource["totalTimeInSeconds"] || 0)
+      const importedStreak = Number(rawData["streak"] || storageSource["streak"] || 0)
+      const savedCompleted = Number(storageSource["completedCount"] || 0)
+  
+      setRevisionBlocks(parsedBlocks.length > 0 ? parsedBlocks : mockRevisionBlocks)
+      setFeedback(parsedFeedback)
+      setPgnChapters(parsedPgn)
+      setImportText({
+        revision: rawTextValue,
+        feedback: rawFeedbackTextValue,
+        pgn: rawPgnTextValue
+      })
+      
+      setCompletedCount(savedCompleted)
+      setAppChapters(importedChapters)
+      setAppErrors(importedErrors)
+      setAppTime(importedTime)
+  
+      localStorage.setItem('chess-trainer:repertoire', JSON.stringify(parsedBlocks))
+      localStorage.setItem('chess-trainer:feedback', JSON.stringify(parsedFeedback))
+      localStorage.setItem('chess-trainer:pgn-chapters', JSON.stringify(parsedPgn))
+      localStorage.setItem('chess-trainer:raw-revision-text', rawTextValue)
+      localStorage.setItem('chess-trainer:raw-feedback-text', rawFeedbackTextValue)
+      localStorage.setItem('chess-trainer:raw-pgn-text', rawPgnTextValue)
+      
+      localStorage.setItem('app_total_chapters', importedChapters.toString())
+      localStorage.setItem('app_total_errors', importedErrors.toString())
+      localStorage.setItem('app_total_time', importedTime.toString())
+      localStorage.setItem('streak', importedStreak.toString())
+      localStorage.setItem('completedCount', savedCompleted.toString())
+  
+      localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+      localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
+      localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
+      localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
+      localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
+  
+      toast.success('🎉 Repertoire et 1051 feedbacks restaurés avec succès !')
     }
-
-    // 5. Lecture des textes bruts
-    const rawTextValue = storageSource["chess-trainer:raw-revision-text"] || ""
-    const rawFeedbackTextValue = storageSource["chess-trainer:raw-feedback-text"] || ""
-    const rawPgnTextValue = storageSource["chess-trainer:raw-pgn-text"] || ""
-
-    // 🚀 LECTURE DIRECTE ET SÉCURISÉE DES COMPTEURS CUMULÉS
-    const importedChapters = Number(storageSource["app_total_chapters"] || parsedFeedback.length || 0)
-    const importedErrors = Number(storageSource["app_total_errors"] || 0)
-    const importedTime = Number(storageSource["app_total_time"] || storageSource["totalTimeInSeconds"] || 0)
-    const importedStreak = Number(rawData["streak"] || storageSource["streak"] || 0)
-    const savedCompleted = Number(storageSource["completedCount"] || 0)
-
-    // 🔥 INJECTION SYNCHRONE FORCEE DANS L'APPLICATION VIVE
-    setRevisionBlocks(parsedBlocks.length > 0 ? parsedBlocks : mockRevisionBlocks)
-    setFeedback(parsedFeedback)
-    setPgnChapters(parsedPgn)
-    setImportText({
-      revision: rawTextValue,
-      feedback: rawFeedbackTextValue,
-      pgn: rawPgnTextValue
-    })
-    
-    setCompletedCount(savedCompleted)
-    setAppChapters(importedChapters)
-    setAppErrors(importedErrors)
-    setAppTime(importedTime)
-
-    // 💾 SAUVEGARDE EN ÉCRASEMENT COMPLET SUR LE DISQUE DU PC
-    localStorage.setItem('chess-trainer:repertoire', JSON.stringify(parsedBlocks))
-    localStorage.setItem('chess-trainer:feedback', JSON.stringify(parsedFeedback))
-    localStorage.setItem('chess-trainer:pgn-chapters', JSON.stringify(parsedPgn))
-    localStorage.setItem('chess-trainer:raw-revision-text', rawTextValue)
-    localStorage.setItem('chess-trainer:raw-feedback-text', rawFeedbackTextValue)
-    localStorage.setItem('chess-trainer:raw-pgn-text', rawPgnTextValue)
-    
-    localStorage.setItem('app_total_chapters', importedChapters.toString())
-    localStorage.setItem('app_total_errors', importedErrors.toString())
-    localStorage.setItem('app_total_time', importedTime.toString())
-    localStorage.setItem('streak', importedStreak.toString())
-    localStorage.setItem('completedCount', savedCompleted.toString())
-
-    // RAZ des verrous matinals pour forcer le recalcul synchrone
-    localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-    localStorage.removeItem('chess-trainer:initial-due-ÉLEVÉE')
-    localStorage.removeItem('chess-trainer:initial-due-MOYENNE')
-    localStorage.removeItem('chess-trainer:initial-due-FAIBLE')
-    localStorage.removeItem('chess-trainer:initial-due-TRÈS FAIBLE')
-
-    toast.success('🎉 Repertoire et 1051 feedbacks restaurés avec succès !')
-  }
-
-  if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
-
-  if (view === 'training') {
-    return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
-  }
-
-  // 🛠️ ALIGNEMENT CHIRURGICAL DES COMPTEURS DU MATIN (Nettoyé et sans doublons !)
-  const summaryList = summary || []
-  const totalRestantDuJour = session.length
-  const totalFaitDuJour = completedCount
-  const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
-
-    // 🎯 RECALIBRAGE PERMANENT DES BLOCS (app/page.tsx)
-  // On force CHAQUE bloc à caler son total du matin (initialDueCount) 
-  // sur le nombre réel de chapitres calculés comme mûrs aujourd'hui par l'SRS.
-  const cleanedSummary = summaryList.map((block) => {
-    // Si la clé du matin n'existe pas encore ou qu'elle a été polluée par le stock global,
-    // on la verrouille strictement sur le pool des variantes dues aujourd'hui.
-    const realTodayDue = block.dueCount || 0
-    const savedInitial = typeof window !== 'undefined' ? localStorage.getItem(`chess-trainer:initial-due-${block.priority}`) : null
-    
-    // Règle d'or : le total affiché est le maximum entre ce qui est dû maintenant et ce qui a été mémorisé ce matin
-    const initialDueCountFixed = savedInitial !== null 
-      ? Math.max(realTodayDue, Number(savedInitial)) 
-      : realTodayDue
-
-    // SÉCURITÉ SÉRIEUSE : Si la session globale est terminée (totalRestantDuJour === 0),
-    // cela signifie que tu as tout nettoyé. Le nombre initial devient STRICTEMENT égal au nombre fait.
-    if (totalRestantDuJour === 0) {
+  
+    if (!mounted) return <div className="min-h-svh bg-background flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-2 border-t-primary" /></div>
+  
+    if (view === 'training') {
+      return <TrainingView session={activeSession} pgnChapters={pgnChapters} onAddFeedback={handleAddFeedback} onExit={handleExit} />
+    }
+  
+    const summaryList = summary || []
+    const totalRestantDuJour = session.length
+    const totalFaitDuJour = completedCount
+    const totalInitialDuJour = totalFaitDuJour + totalRestantDuJour
+  
+    const cleanedSummary = summaryList.map((block) => {
+      const storageKey = `chess-trainer:initial-due-${block.priority}`
+      const savedInitial = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null
+      const totalInitialDuBloc = savedInitial !== null ? Math.max(block.dueCount, Number(savedInitial)) : block.dueCount
+      const faitDansCeBloc = Math.max(0, totalInitialDuBloc - block.dueCount)
+  
       return {
         ...block,
-        initialDueCount: initialDueCountFixed,
-        dueCount: 0 // Plus aucune carte en attente
+        initialDueCount: totalInitialDuBloc,
+        dueCount: block.dueCount,
+        forcedFait: faitDansCeBloc 
       }
-    }
-
-    return {
-      ...block,
-      initialDueCount: initialDueCountFixed
-    }
-  })
-
-
-  return (
-    <div className="min-h-svh bg-background pb-24">
-      {activeTab === 'aujourdhui' && (
-        <DashboardView 
-          session={session} 
-          summary={cleanedSummary} // 👈 On passe le résumé recalibré et propre
-          onStart={handleStart}
-          forcedStats={{
-            fait: totalFaitDuJour,
-            total: totalInitialDuJour
-          }}
-        />
-      )}
-      
-      {activeTab === 'gerer' && (
-        <div className="p-4 max-w-2xl mx-auto space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1 text-foreground">Gestion du Répertoire</h1>
-            <p className="text-sm text-muted-foreground mb-6">Visualisez, modifiez ou exportez les données brutes.</p>
+    })
+  
+    return (
+      <div className="min-h-svh bg-background pb-24">
+        {activeTab === 'aujourdhui' && (
+          <DashboardView 
+            session={session} 
+            summary={cleanedSummary}
+            onStart={handleStart}
+            forcedStats={{
+              fait: totalFaitDuJour,
+              total: totalInitialDuJour
+            }}
+          />
+        )}
+        
+        {activeTab === 'gerer' && (
+          <div className="p-4 max-w-2xl mx-auto space-y-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight mb-1 text-foreground">Gestion du Répertoire</h1>
+              <p className="text-sm text-muted-foreground mb-6">Visualisez, modifiez ou exportez les données brutes.</p>
+            </div>
+            <ImportPanel initialText={importText} onImport={handleImport} />
           </div>
-          <ImportPanel initialText={importText} onImport={handleImport} />
-        </div>
-      )}
-
-      {activeTab === 'stats' && (
-        <StatsView 
-          totalChapters={appChapters} 
-          totalErrors={appErrors} 
-          totalTimeInSeconds={appTime} 
-          feedback={feedback}
-        />
-      )}
-
-      {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
-      <BottomNav activeTab={activeTab} onChange={setActiveTab} />
-    </div>
-  )
-}
+        )}
+  
+        {activeTab === 'stats' && (
+          <StatsView 
+            totalChapters={appChapters} 
+            totalErrors={appErrors} 
+            totalTimeInSeconds={appTime} 
+            feedback={feedback}
+          />
+        )}
+  
+        {activeTab === 'reglages' && <SettingsView sessionCount={session.length} />} 
+        <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+      </div>
+    )
+  }
+  
