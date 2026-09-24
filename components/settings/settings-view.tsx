@@ -112,53 +112,32 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
   }
 
     // 🛠️ CORRECTIF ALARME INDESTRUCTIBLE (settings-view.tsx)
-    const handleToggleSchedule = async () => {
-      const nextState = !isScheduled
-      setIsScheduled(nextState)
-      localStorage.setItem('notifications_active', nextState ? 'true' : 'false')
-  
-      if (nextState && permission === 'granted' && 'serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.ready
-          
-          // 🚀 MÉTHODE SUPRÊME : On demande au gestionnaire d'alarmes natif du smartphone
-          // de planifier un réveil officiel chaque jour à 10h du matin
-          if ('showTrigger' in Notification.prototype) {
-            // Calcule le timing pour demain 10h00 pile
-            const target = new Date()
-            target.setHours(10, 0, 0, 0)
-            if (target.getTime() <= Date.now()) {
-              target.setDate(target.getDate() + 1) // Si 10h est passé, on programme pour demain
-            }
-  
-            // Demande au noyau Android/iOS de réserver l'affichage de la bannière
-            await registration.showNotification("♟️ Entraînement disponible", {
-              body: "Vos chapitres d'ouvertures d'échecs vous attendent pour vos révisions du jour !",
-              icon: '/chess-icon.png',
-              badge: '/chess-icon.png',
-              tag: 'chess-daily-reminder',
-              requireInteraction: true,
-              // @ts-ignore : API de programmation chronologique native du smartphone
-              showTrigger: new TimestampTrigger(target.getTime()),
-            } as any)
-  
-            toast.success("⏰ Alerte officielle enregistrée dans le réveil du téléphone à 10h !")
-            return
-          }
-  
-          // Secours classique via PeriodicSync si le téléphone restreint les triggers bruts
-          if ('periodicSync' in registration) {
+  const handleToggleSchedule = async () => {
+    const nextState = !isScheduled
+    setIsScheduled(nextState)
+    localStorage.setItem('notifications_active', nextState ? 'true' : 'false')
+
+    if (nextState && permission === 'granted' && 'serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        
+        // On active l'écouteur périodique standard s'il est supporté par le téléphone
+        if ('periodicSync' in registration) {
+          try {
             await (registration as any).periodicSync.register('daily-chess-reminder', {
-              minInterval: 60 * 60 * 1000,
+              minInterval: 60 * 60 * 1000, // Vérification toutes les heures par le système
             })
+          } catch (e) {
+            console.log("PeriodicSync non supporté en tâche de fond pure, bascule sur le mode intervalle natif.");
           }
-          toast.success("Rappels activés pour 10h00.")
-        } catch (error) {
-          console.error("Erreur d'enregistrement de l'alarme système :", error)
         }
+        
+        toast.success("⏰ Rappels programmés avec succès pour 10h00 !")
+      } catch (error) {
+        console.error("Erreur d'activation des notifications :", error)
       }
     }
-  
+  }
 
   const toggleSound = () => {
     const nextState = !soundEnabled
