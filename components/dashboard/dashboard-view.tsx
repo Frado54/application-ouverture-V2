@@ -23,9 +23,14 @@ export function DashboardView({ session, summary, onStart, forcedStats }: Dashbo
   const displayMinutes = totalMinutesGlobal % 60
   
       // 🛠️ RECALIBRAGE DU STREAK : Lecture directe de la clé universelle partagée
-  const currentStreak = typeof window !== 'undefined' 
-  ? Number(localStorage.getItem('streak') || localStorage.getItem('chess-trainer:streak') || 0) 
-  : 0
+  const storedStreak = typeof window !== 'undefined' 
+    ? Number(localStorage.getItem('streak') || localStorage.getItem('chess-trainer:streak') || 0) 
+    : 0
+
+  // RÈGLE DE REPRISE IMMÉDIATE : Si tu as validé au moins un chapitre aujourd'hui (totalFaitDuJour > 0),
+  // la série a officiellement repris ! On force l'accueil à afficher au moins 1j pour s'aligner sur les Stats.
+  const currentStreak = totalFaitDuJour > 0 ? Math.max(1, storedStreak) : storedStreak
+
 
   return (
     <div className="max-w-md mx-auto p-4 space-y-6 text-foreground animate-fade-in">
