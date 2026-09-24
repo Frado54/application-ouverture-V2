@@ -188,7 +188,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
   }
 
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6 text-foreground">
       <FieldGroup>
         {/* ZONE 1 : RÉVISION */}
         <Field className="space-y-1">
@@ -245,10 +245,10 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
         </Field>
 
         {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
-        <Field>
+        <Field className="space-y-1">
           <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
           <FieldDescription>
-            Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
+             Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
           </FieldDescription>
           
           <div className="mt-4 flex flex-col items-center gap-4 w-full">
@@ -261,7 +261,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
             >
               {isLoadingPgn ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-full animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-auto animate-spin" />
                   Traitement des 400 Mo...
                 </>
               ) : (
@@ -269,39 +269,7 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               )}
             </Button>
 
-            {/* 2. BOUTON ORANGE (Sauvegarder) */}
-            <Button             onChange={(e) => setFeedbackText(e.target.value)}
-            placeholder={'Étude;chapitre;niveau;date;erreurs'}
-            className="min-h-32 bg-[#1E1E20] font-mono text-xs w-full"
-          />
-            </Field>
-
-        {/* ZONE 3 : PGN ET BOUTONS ACTIONS */}
-        <Field>
-          <FieldLabel>Répertoire PGN (Gros Fichier local)</FieldLabel>
-          <FieldDescription>
-            Injectez le fichier <code className="font-mono text-xs">toutes_les_ouvertures.txt</code> du dossier public.
-          </FieldDescription>
-          
-          <div className="mt-4 flex flex-col items-center gap-4 w-full">
-            {/* 1. BOUTON BLEU (Charger PGN) */}
-            <Button
-              type="button"
-              onClick={handleLoadLocalPgn}
-              disabled={isLoadingPgn}
-              className="w-full h-auto min-h-12 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-xs sm:text-sm md:text-base text-center transition-colors whitespace-normal break-words shadow-md"
-            >
-              {isLoadingPgn ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-full animate-spin" />
-                  Traitement des 400 Mo...
-                </>
-              ) : (
-                "Charger toutes_les_ouvertures.txt depuis le dossier public"
-              )}
-            </Button>
-
-            {/* 2. BOUTON ORANGE (Sauvegarder) */}
+            {/* 2. BOUTON ORANGE (Sauvegarder - Entièrement nettoyé !) */}
             <Button
               type="button"
               onClick={handleSave}
@@ -311,21 +279,19 @@ export function ImportPanel({ initialText, onImport }: ImportPanelProps) {
               Sauvegarder et Initialiser mon Répertoire
             </Button>
 
-            {/* GRILLE DE SYNCHRONISATION JSON */}
+            {/* GRILLE DES BOUTONS DE SYNCHRONISATION JSON */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              {/* 3. BOUTON EXPORTER (.JSON) */}
+              {/* 3. EXPORTER (.JSON) */}
               <Button
                 type="button"
                 onClick={handleExport}
                 className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors whitespace-normal"
               >
-                <Download className="size-4 shrink-0" />
                 <span>Exporter (.json)</span>
               </Button>
 
-              {/* 4. BOUTON IMPORTER (.JSON) AVEC INPUT INVISIBLE LINKÉ */}
+              {/* 4. IMPORTER (.JSON) */}
               <label className="w-full h-auto min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium rounded-xl text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 transition-colors cursor-pointer text-center select-none active:scale-[0.98]">
-                <Upload className="size-4 shrink-0" />
                 <span>Importer (.json)</span>
                 <input
                   type="file"
