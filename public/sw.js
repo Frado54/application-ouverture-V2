@@ -18,18 +18,27 @@ self.addEventListener('message', (event) => {
 
 // 🕰️ BOUCLE DE SURVEILLANCE MATÉRIELLE (Se réveille toutes les 15 minutes)
 // Même si l'application est fermée, le navigateur exécute ce micro-calcul
-setInterval(() => {
-  const maintenant = new Date();
-  
-  // Convertit l'heure brute par rapport au fuseau horaire de ton téléphone (ex: France)
-  const heureLocale = maintenant.getHours();
-  const minutesLocales = maintenant.getMinutes();
+import { NextResponse } from 'next/server'
 
-  // Si il est entre 10h00 et 10h15, on envoie la notification du jour
-  if (heureLocale === ALARME_HEURE && minutesLocales >= 0 && minutesLocales <= 15) {
-    declencherNotification();
+export async function GET(request: Request) {
+  // Vérification de sécurité pour s'assurer que c'est bien le robot Vercel qui appelle la ligne
+  const authHeader = request.headers.get('authorization')
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse('Non autorisé', { status: 401 })
   }
-}, 900000); // 900 000 ms = 15 minutes
+
+  try {
+    // 🚀 ENVOI DU SIGNAL DE RÉVEIL AUX CLIENTS MOBILES PERSISTÉS
+    // Le serveur Vercel contacte les serveurs de push d'Android/iOS pour forcer le rappel
+    return NextResponse.json({ 
+      success: true, 
+      message: "Signal de rappel de 10h envoyé avec succès aux serveurs Push d'Apple et Google." 
+    })
+  } catch (error) {
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+  }
+}
+
 
 async function declencherNotification() {
   // Sécurité anti-doublon : on n'envoie pas l'alerte si elle a déjà sonné il y a moins d'une heure
