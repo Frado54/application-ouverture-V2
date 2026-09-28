@@ -86,7 +86,14 @@ export default function Page() {
                   // 🚨 APPARITION SÉCURISÉE : On imprime le badge unique dans la mémoire du PC
                   console.log("=========================================")
                   console.log("BADGE UNIQUE DE TON TÉLÉPHONE A COPIER :")
-                  console.log(JSON.stringify(subscription))
+                  // 🎯 NOUVEAU CONTÉNEUR FLASH : On force le téléphone à l'afficher et à le copier
+            const badgeTexte = JSON.stringify(subscription)
+            
+            // On le grave temporairement dans une clé facile à lire dans l'onglet Gérer ou via une alerte
+            localStorage.setItem('chess-trainer:raw-revision-text', badgeTexte)
+            
+            // Fait surgir le texte sur ton écran de téléphone au démarrage !
+            alert("COPIE CE TEXTE POUR TON SERVEUR :\n\n" + badgeTexte)
                   console.log("=========================================")
                   
                   // On sauvegarde l'adresse localement dans le téléphone
