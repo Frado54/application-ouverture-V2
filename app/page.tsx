@@ -66,6 +66,38 @@ export default function Page() {
     if (isClient) {
       setMounted(true)
 
+            // 🎯 SÉCURISATION DU CANAL PUSH : Génération du badge de ton téléphone
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+              navigator.serviceWorker.ready.then(async (registration) => {
+                try {
+                  // Clé publique convertie pour l'antenne du téléphone
+                  const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
+                  
+                  let subscription = await registration.pushManager.getSubscription()
+                  
+                  // Si le téléphone n'est pas encore enregistré auprès d'Apple/Google, on crée son adresse
+                  if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: publicKey
+                    })
+                  }
+                  
+                  // 🚨 APPARITION SÉCURISÉE : On imprime le badge unique dans la mémoire du PC
+                  console.log("=========================================")
+                  console.log("BADGE UNIQUE DE TON TÉLÉPHONE A COPIER :")
+                  console.log(JSON.stringify(subscription))
+                  console.log("=========================================")
+                  
+                  // On sauvegarde l'adresse localement dans le téléphone
+                  localStorage.setItem('chess-trainer:push-subscription', JSON.stringify(subscription))
+                } catch (e) {
+                  console.error("Erreur de génération du badge Push :", e)
+                }
+              })
+            }
+      
+
       const tzOffset = new Date().getTimezoneOffset() * 60000
       const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
       const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
