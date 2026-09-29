@@ -61,77 +61,67 @@ export default function Page() {
   })
   const [chapterStartTime, setChapterStartTime] = useState<number>(Date.now())
 
-  // 🛠️ NETTOYAGE MATINAL COMPLET ET ÉTANCHE DE TOUS LES BLOCS
-  useEffect(() => {
-    if (isClient) {
-      setMounted(true)
-
-            // 🎯 SÉCURISATION DU CANAL PUSH : Génération du badge de ton téléphone
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-              navigator.serviceWorker.ready.then(async (registration) => {
-                try {
-                  // Clé publique convertie pour l'antenne du téléphone
-                  const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
-                  
-                  let subscription = await registration.pushManager.getSubscription()
-                  
-                  // Si le téléphone n'est pas encore enregistré auprès d'Apple/Google, on crée son adresse
-                  if (!subscription) {
-                    subscription = await registration.pushManager.subscribe({
-                      userVisibleOnly: true,
-                      applicationServerKey: publicKey
-                    })
-                  }
-                  
-                  // 🚨 APPARITION SÉCURISÉE : On imprime le badge unique dans la mémoire du PC
-                  console.log("=========================================")
-                  console.log("BADGE UNIQUE DE TON TÉLÉPHONE A COPIER :")
-                  // 🎯 NOUVEAU CONTÉNEUR FLASH : On force le téléphone à l'afficher et à le copier
-            const badgeTexte = JSON.stringify(subscription)
-            
-            // On le grave temporairement dans une clé facile à lire dans l'onglet Gérer ou via une alerte
-            localStorage.setItem('chess-trainer:raw-revision-text', badgeTexte)
-            
-            // Fait surgir le texte sur ton écran de téléphone au démarrage !
-            alert("COPIE CE TEXTE POUR TON SERVEUR :\n\n" + badgeTexte)
-                  console.log("=========================================")
-                  
-                  // On sauvegarde l'adresse localement dans le téléphone
-                  localStorage.setItem('chess-trainer:push-subscription', JSON.stringify(subscription))
-                } catch (e) {
-                  console.error("Erreur de génération du badge Push :", e)
-                }
+    // 🛠️ NETTOYAGE MATINAL COMPLET ET ENVOI DE LA CLÉ SANS FAUT_DE_FRAPPE
+    useEffect(() => {
+      if (isClient) {
+        setMounted(true)
+  
+        // 🎯 ENVOI AUTOMATIQUE : Le téléphone donne son adresse exacte au serveur Vercel
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          navigator.serviceWorker.ready.then(async (registration) => {
+            try {
+              const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
+              let subscription = await registration.pushManager.getSubscription()
+              
+              if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: publicKey
+                })
+              }
+              
+              // On envoie le badge parfait au serveur en arrière-plan sans boîte d'alerte
+              await fetch('/api/reminder-cron', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subscription })
               })
+  
+              localStorage.setItem('chess-trainer:push-subscription', JSON.stringify(subscription))
+            } catch (e) {
+              console.error("Erreur de synchronisation Push :", e)
             }
-      
-
-      const tzOffset = new Date().getTimezoneOffset() * 60000
-      const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
-      const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
-
-      if (dateDernierNettoyage !== localISODate) {
-        // 1. Reset de la jauge quotidienne
-        localStorage.setItem('completedCount', '0')
-        setCompletedCount(0)
-
-        // 2. PURGE ABSOLUE : On efface les verrous initials d'hier pour forcer le recalcul à blanc
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITE ABSOLUE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ÉLEVÉE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITE ELEVEE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ MOYENNE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITE MOYENNE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ FAIBLE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITE FAIBLE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ TRÈS FAIBLE')
-        localStorage.removeItem('chess-trainer:initial-due-PRIORITE TRES FAIBLE')
-        
-        localStorage.setItem('chess-trainer:last-clear-date', localISODate)
-      } else {
-        setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
+          })
+        }
+  
+        const tzOffset = new Date().getTimezoneOffset() * 60000
+        const localISODate = new Date(Date.now() - tzOffset).toISOString().slice(0, 10)
+        const dateDernierNettoyage = localStorage.getItem('chess-trainer:last-clear-date')
+  
+        if (dateDernierNettoyage !== localISODate) {
+          // 1. Reset de la jauge quotidienne
+          localStorage.setItem('completedCount', '0')
+          setCompletedCount(0)
+  
+          // 2. PURGE ABSOLUE : On efface les verrous initials d'hier pour forcer le recalcul à blanc
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ABSOLUE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ABSOLUE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ ÉLEVÉE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE ELEVEE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ MOYENNE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE MOYENNE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITÉ TRÈS FAIBLE')
+          localStorage.removeItem('chess-trainer:initial-due-PRIORITE TRES FAIBLE')
+          
+          localStorage.setItem('chess-trainer:last-clear-date', localISODate)
+        } else {
+          setCompletedCount(Number(localStorage.getItem('completedCount') || 0))
+        }
       }
-    }
-  }, [isClient])
+    }, [isClient])
+  
 
   // EXTRACTION SRS DYNAMIQUE
   const { session, summary } = useMemo(() => {
