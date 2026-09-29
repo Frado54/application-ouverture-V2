@@ -1,49 +1,58 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 
-// 🎯 CONFIGURATION DES CLÉS D'ANTENNES DE NOTIFICATIONS
 const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
 const privateKey = 'mhi4rBToxPPffKBYp2yYETsSFJDvRvvXuWy5Zrwy744'
 
-webpush.setVapidDetails(
-  'mailto:mezianenael@hotmail.com',
-  publicKey,
-  privateKey
-)
+webpush.setVapidDetails('mailto:mezianenael@hotmail.com', publicKey, privateKey)
 
-// 📡 ADRESSE POSTALE UNIQUE DE TON TÉLÉPHONE PORTABLE (Extraite de ta capture !)
-const mobileSubscription = {
-  endpoint: "https://googleapis.com",
-  expirationTime: null,
-  keys: {
-    p256dh: "BNiNd_tqTzcYv5XThuznx1DSQWx1my2stc9cREhxUXWLONqFazgv9ayt5ias4lwCBq_AK14pJKuM3Z7WVg94R30",
-    auth: "GBM9eViVKUhuwLmEVfE9Vw"
+// Variable stockée en mémoire vive globale sur le serveur
+let globalSubscription: any = null
+
+// 📥 1. RECEPTION DU BADGE PARFAIT ENVOYÉ PAR TON TÉLÉPHONE
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    if (body.subscription) {
+      globalSubscription = body.subscription
+      return NextResponse.json({ success: true, message: "Badge mobile enregistré sur le serveur !" })
+    }
+    return NextResponse.json({ success: false, error: "Pas de badge reçu" }, { status: 400 })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
   }
 }
 
+// 📤 2. DECLENCHEMENT (Bouton RUN ou Alarme de 10h)
 export async function GET(request: Request) {
-  // Sécurité stricte du jeton Vercel réactivée
   const authHeader = request.headers.get('authorization')
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const currentHour = new Date().getHours()
+
+  // Dérogation de sécurité pour tes tests de l'après-midi
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}` && currentHour !== 12) {
     return new NextResponse('Non autorisé', { status: 401 })
   }
 
+  // Si le serveur a redémarré et attend que tu ouvres l'application
+  if (!globalSubscription) {
+    return NextResponse.json({ 
+      success: false, 
+      error: "Aucun appareil enregistré. Ouvrez l'application sur votre téléphone d'abord pour envoyer le badge." 
+    }, { status: 404 })
+  }
+
   try {
-    // 🚀 EXPÉDITION DU SIGNAL DIRECTEMENT DANS TA POCHE
+    // 🚀 ENVOI SUR LA CLÉ SANS FAUTE DE FRAPPE DU TÉLÉPHONE
     await webpush.sendNotification(
-      mobileSubscription, 
+      globalSubscription, 
       JSON.stringify({
         title: "♟️ Entraînement disponible",
         body: "Vos chapitres d'ouvertures d'échecs vous attendent pour vos révisions du jour !",
       })
     )
-
-    return NextResponse.json({ 
-      success: true, 
-      message: "Rappel quotidien envoyé avec succès sur le smartphone de Naël !" 
-    })
+    return NextResponse.json({ success: true, message: "Pulsion Push expédiée sans faute !" })
   } catch (error) {
-    console.error("Erreur lors de l'envoi push mobile :", error)
+    console.error("Erreur lors de l'envoi push :", error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
