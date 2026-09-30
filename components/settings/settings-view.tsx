@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { ensurePushSubscription } from '@/lib/push-client'
 
 interface SettingsViewProps {
   sessionCount: number
 }
 
-// Les différentes options de tailles disponibles
 const SESSION_OPTIONS = [
   { value: '20', label: '20 chapitres' },
   { value: '30', label: '30 chapitres' },
@@ -19,10 +19,9 @@ const SESSION_OPTIONS = [
 ]
 
 export function SettingsView({ sessionCount }: SettingsViewProps) {
-  const isClient = typeof window !== 'undefined'
-  
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isScheduled, setIsScheduled] = useState(false)
+  const [pushJson, setPushJson] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [sessionMax, setSessionMax] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -32,60 +31,18 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     return '30'
   })
 
-  // 1. Synchronisation initiale des états
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if ('Notification' in window) {
-        setPermission(Notification.permission)
-      }
-      setIsScheduled(localStorage.getItem('notifications_active') === 'true')
-      
-      const savedSound = localStorage.getItem('chess-trainer:sound-enabled')
-      if (savedSound !== null) {
-        setSoundEnabled(savedSound === 'true')
-      }
+    if (typeof window === 'undefined') return
+    if ('Notification' in window) setPermission(Notification.permission)
+    setIsScheduled(localStorage.getItem('notifications_active') === 'true')
+    setPushJson(localStorage.getItem('chess-trainer:push-subscription') || '')
 
-      // 🛠️ Récupération de la limite de session
-      const savedMax = localStorage.getItem('chess-trainer:session-max')
-      if (savedMax !== null) {
-        setSessionMax(savedMax)
-      }
-    }
+    const savedSound = localStorage.getItem('chess-trainer:sound-enabled')
+    if (savedSound !== null) setSoundEnabled(savedSound === 'true')
+
+    const savedMax = localStorage.getItem('chess-trainer:session-max')
+    if (savedMax !== null) setSessionMax(savedMax)
   }, [])
-
-  // 2. Le chronomètre des rappels
-  useEffect(() => {
-    if (!isScheduled || permission !== 'granted') return
-
-    const checkAndTrigger = () => {
-      const hours = new Date().getHours()
-      if (hours === 10 && sessionCount > 0) {
-        triggerLocalNotification(
-          "♟️ Entraînement disponible", 
-          `Vous avez ${sessionCount} chapitres d'ouvertures à réviser aujourd'hui !`
-        )
-      }
-    }
-
-    const intervalId = setInterval(checkAndTrigger, 3600000)
-    return () => clearInterval(intervalId)
-  }, [isScheduled, permission, sessionCount])
-
-  const requestPermission = async () => {
-    if (!('Notification' in window)) {
-      alert("Ce navigateur ne prend pas en charge les notifications de bureau.")
-      return
-    }
-    
-    const res = await Notification.requestPermission()
-    setPermission(res)
-    
-    if (res === 'granted') {
-      triggerLocalNotification("Notifications activées !", "Vous recevrez des rappels pour vos ouvertures d'échecs.")
-      setIsScheduled(true)
-      localStorage.setItem('notifications_active', 'true')
-    }
-  }
 
   const triggerLocalNotification = async (title: string, body: string) => {
     if (Notification.permission !== 'granted') return
@@ -94,45 +51,58 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
       try {
         const registration = await navigator.serviceWorker.ready
         if (registration) {
-          registration.showNotification(title, {
+          await registration.showNotification(title, {
             body,
-            icon: '/chess-icon.png',
-            badge: '/chess-icon.png',
+            icon: '/apple-icon.png',
+            badge: '/apple-icon.png',
+            tag: 'chess-daily-reminder',
           })
           return
         }
       } catch (error) {
-        console.warn("Service Worker pas prêt, secours classique :", error)
+        console.warn('Service Worker pas prêt, secours classique :', error)
       }
     }
 
     if ('Notification' in window) {
-      new Notification(title, { body, icon: '/chess-icon.png' })
+      new Notification(title, { body, icon: '/apple-icon.png' })
     }
   }
 
-    // 🛠️ CORRECTIF ALARME INDESTRUCTIBLE (settings-view.tsx)
+  const requestPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('Ce navigateur ne prend pas en charge les notifications.')
+      return
+    }
+
+    const res = await Notification.requestPermission()
+    setPermission(res)
+
+    if (res === 'granted') {
+      try {
+        const subscription = await ensurePushSubscription()
+        if (subscription) setPushJson(JSON.stringify(subscription, null, 2))
+      } catch (error) {
+        console.error(error)
+        toast.error("Impossible de créer l'abonnement Push.")
+      }
+
+      await triggerLocalNotification('Notifications activées !', 'Rappels prévus à 7h30 et 22h30.')
+      setIsScheduled(true)
+      localStorage.setItem('notifications_active', 'true')
+    }
+  }
+
   const handleToggleSchedule = async () => {
     const nextState = !isScheduled
     setIsScheduled(nextState)
     localStorage.setItem('notifications_active', nextState ? 'true' : 'false')
 
-    if (nextState && permission === 'granted' && 'serviceWorker' in navigator) {
+    if (nextState && permission === 'granted') {
       try {
-        const registration = await navigator.serviceWorker.ready
-        
-        // On active l'écouteur périodique standard s'il est supporté par le téléphone
-        if ('periodicSync' in registration) {
-          try {
-            await (registration as any).periodicSync.register('daily-chess-reminder', {
-              minInterval: 60 * 60 * 1000, // Vérification toutes les heures par le système
-            })
-          } catch (e) {
-            console.log("PeriodicSync non supporté en tâche de fond pure, bascule sur le mode intervalle natif.");
-          }
-        }
-        
-        toast.success("⏰ Rappels programmés avec succès pour 10h00 !")
+        const subscription = await ensurePushSubscription()
+        if (subscription) setPushJson(JSON.stringify(subscription, null, 2))
+        toast.success('⏰ Rappels programmés à 7h30 et 22h30.')
       } catch (error) {
         console.error("Erreur d'activation des notifications :", error)
       }
@@ -145,7 +115,6 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
     localStorage.setItem('chess-trainer:sound-enabled', nextState.toString())
   }
 
-  // 🛠️ Sauvegarde du choix de la taille max
   const handleSessionMaxChange = (value: string) => {
     setSessionMax(value)
     localStorage.setItem('chess-trainer:session-max', value)
@@ -159,24 +128,23 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
       return
     }
     triggerLocalNotification(
-      "♟️ Test Réussi !", 
-      sessionCount > 0 
-        ? `Ton téléphone fonctionne. Tu as ${sessionCount} variantes à réviser.` 
-        : "Ton téléphone fonctionne. Aucun chapitre dû pour l'instant !"
+      '♟️ Test réussi !',
+      sessionCount > 0
+        ? `Ton téléphone fonctionne. Tu as ${sessionCount} variantes à réviser.`
+        : 'Ton téléphone fonctionne. Aucun chapitre dû pour l’instant !',
     )
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6 text-foreground">
+    <div className="max-w-md mx-auto space-y-6 p-6 text-foreground">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight mb-2">Réglages de l'application</h1>
-        <p className="text-sm text-muted-foreground">Configurez vos préférences d'entraînement au quotidien.</p>
+        <h1 className="mb-2 text-2xl font-bold tracking-tight">Réglages de l&apos;application</h1>
+        <p className="text-sm text-muted-foreground">Configurez vos préférences d&apos;entraînement au quotidien.</p>
       </div>
 
-      {/* 🛠️ NOUVEAU BLOC : TAILLE MAXIMALE DE LA SESSION */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-5">
         <div>
-          <h3 className="font-semibold text-base">Structure de l'entraînement</h3>
+          <h3 className="text-base font-semibold">Structure de l&apos;entraînement</h3>
           <p className="text-xs text-muted-foreground">
             Nombre maximal de chapitres chargés dans une même session de révision.
           </p>
@@ -188,10 +156,10 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
               key={opt.value}
               type="button"
               onClick={() => handleSessionMaxChange(opt.value)}
-              className={`py-2 px-3 text-xs font-medium rounded-lg border transition-all text-center ${
+              className={`rounded-lg border px-3 py-2 text-center text-xs font-medium transition-all ${
                 sessionMax === opt.value
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm font-semibold'
-                  : 'bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                  ? 'border-primary bg-primary font-semibold text-primary-foreground shadow-sm'
+                  : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
               }`}
             >
               {opt.label}
@@ -200,12 +168,11 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         </div>
       </div>
 
-      {/* BLOC : EFFETS SONORES */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-base">Effets sonores</h3>
-            <p className="text-xs text-muted-foreground max-w-[250px]">
+            <h3 className="text-base font-semibold">Effets sonores</h3>
+            <p className="max-w-[250px] text-xs text-muted-foreground">
               Activer le bruit de déplacement des pièces en bois pendant vos sessions de jeu.
             </p>
           </div>
@@ -226,25 +193,26 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         </div>
       </div>
 
-      {/* BLOC : RAPPELS QUOTIDIENS */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-base">Rappels quotidiens</h3>
-            <p className="text-xs text-muted-foreground max-w-[250px]">
-              Recevoir une alerte chaque jour si des variantes d'échecs sont dues pour révision.
+            <h3 className="text-base font-semibold">Rappels quotidiens</h3>
+            <p className="max-w-[250px] text-xs text-muted-foreground">
+              Alerte à 7h30 et 22h30 (heure de Paris) via le Cron Vercel, même si l&apos;app est fermée.
             </p>
           </div>
-          
+
           {permission !== 'granted' ? (
             <button
+              type="button"
               onClick={requestPermission}
-              className="px-3 py-1.5 bg-primary text-primary-foreground font-medium rounded-lg text-sm hover:bg-primary/90 transition-colors"
+              className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Autoriser
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleToggleSchedule}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 isScheduled ? 'bg-primary' : 'bg-muted'
@@ -260,23 +228,42 @@ export function SettingsView({ sessionCount }: SettingsViewProps) {
         </div>
 
         {permission === 'denied' && (
-          <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg">
-            Les notifications sont bloquées par votre navigateur. Réactivez-les dans les paramètres de votre site pour recevoir vos alertes.
+          <p className="rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
+            Les notifications sont bloquées par votre navigateur. Réactivez-les dans les paramètres du site.
           </p>
         )}
 
         {isScheduled && permission === 'granted' && (
           <div className="space-y-3 pt-2">
-            <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded-lg">
-              ✓ Rappel actif. L'application vous préviendra quotidiennement si vous avez des lignes en attente.
+            <p className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-500">
+              ✓ Rappels actifs à 7h30 et 22h30. Copiez l&apos;abonnement et collez-le dans{' '}
+              <code className="font-mono">app/api/reminder-cron/route.ts</code> puis redéployez.
             </p>
+            {pushJson ? (
+              <div className="space-y-2">
+                <textarea
+                  readOnly
+                  value={pushJson}
+                  className="h-28 w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(pushJson)
+                    toast.success('Abonnement Push copié.')
+                  }}
+                  className="min-h-10 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-xs font-bold text-zinc-300"
+                >
+                  Copier l&apos;abonnement Push
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
-              active-touch="true"
               onClick={handleTestNotification}
-              className="w-full min-h-12 py-3 px-4 border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-900 text-zinc-300 font-bold rounded-xl text-xs transition-all active:scale-[0.98] select-none block text-center shadow-sm"
+              className="block min-h-12 w-full select-none rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-center text-xs font-bold text-zinc-300 shadow-sm transition-all hover:bg-zinc-900 active:scale-[0.98]"
             >
-              Tester l'envoi de la notification
+              Tester l&apos;envoi de la notification
             </button>
           </div>
         )}

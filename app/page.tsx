@@ -13,7 +13,9 @@ import {
   revisionBlocks as mockRevisionBlocks,
 } from '@/lib/mock-data'
 import { buildSession } from '@/lib/srs'
+import { ensurePushSubscription } from '@/lib/push-client'
 import { loadRawImportText, loadStoredRepertoire, saveFeedback, saveRawImportText, saveRepertoire } from '@/lib/storage'
+import { toast } from 'sonner'
 import type { DueChapter, FeedbackEntry, PgnChapter, RevisionPriorityBlock } from '@/lib/types'
 
 export default function Page() {
@@ -66,31 +68,9 @@ export default function Page() {
       if (isClient) {
         setMounted(true)
   
-        // 🎯 ENVOI AUTOMATIQUE : Le téléphone donne son adresse exacte au serveur Vercel
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-          navigator.serviceWorker.ready.then(async (registration) => {
-            try {
-              const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
-              let subscription = await registration.pushManager.getSubscription()
-              
-              if (!subscription) {
-                subscription = await registration.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: publicKey
-                })
-              }
-              
-              // On envoie le badge parfait au serveur en arrière-plan sans boîte d'alerte
-              await fetch('/api/reminder-cron', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subscription })
-              })
-  
-              localStorage.setItem('chess-trainer:push-subscription', JSON.stringify(subscription))
-            } catch (e) {
-              console.error("Erreur de synchronisation Push :", e)
-            }
+        if ('Notification' in window && Notification.permission === 'granted') {
+          ensurePushSubscription().catch((error) => {
+            console.error('Erreur de synchronisation Push :', error)
           })
         }
   

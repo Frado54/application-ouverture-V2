@@ -17,6 +17,13 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
         ],
       },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
     ]
   },
 }
