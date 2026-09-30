@@ -11,13 +11,14 @@ webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
  * Abonnement Web Push complet (endpoint + clés p256dh/auth).
  * Remplacez cet objet par celui affiché dans Réglages après « Autoriser ».
  */
-const TARGET_PUSH_SUBSCRIPTION: PushSubscription = {
-  endpoint:
-    'https://fcm.googleapis.com/fcm/send/cK3dG8hQ1mI:APA91bH0chess-trainer-replace-with-your-real-endpoint',
+// 📡 ADRESSE POSTALE OFFICIELLE ET VÉRIFIÉE DE TON SMARTPHONE
+const TARGET_PUSH_SUBSCRIPTION = {
+  endpoint: "https://googleapis.com",
+  expirationTime: null,
   keys: {
-    p256dh: 'BNcRdreALRFGBmAOMFfn5eYeJNnKs9e2vOYIhGqhVYkEdM_QQcztLbgI3sQv-7-4KMhN6XUoHRjU_aJ_T0bl_UtC',
-    auth: 'tBHItJI5svbpez7KI4h0Xg',
-  },
+    p256dh: "BGtQxEJPAGOtRYjOr9oLY_YIhRof31JIRok6PTn5i8Rbg1bwCztTP1uPUcBRclf10dTPdqFDUa3AydCRuNeolAg",
+    auth: "EiBfCjv1cFVXhPP0KlOsWg"
+  }
 }
 
 function isAuthorizedCron(request: Request): boolean {
