@@ -7,18 +7,13 @@ export const dynamic = 'force-dynamic'
 
 webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
-/**
- * Abonnement Web Push complet (endpoint + clés p256dh/auth).
- * Remplacez cet objet par celui affiché dans Réglages après « Autoriser ».
- */
-// 📡 ADRESSE POSTALE OFFICIELLE ET VÉRIFIÉE DE TON SMARTPHONE
-const TARGET_PUSH_SUBSCRIPTION = {
-  endpoint: "https://googleapis.com",
-  expirationTime: null,
+const TARGET_PUSH_SUBSCRIPTION: PushSubscription = {
+  endpoint:
+    'https://fcm.googleapis.com/fcm/send/fu4plzSLpkg:APA91bEvUkMcL-c_NfDZINWa3L5KhRaowa1lYsyp2EDgejB5GQUZPZYOHgrBz-MnxB2j0Oby2eJ6lzA9j486MTwhYFZQzB-Sh1y1RTtpLniZf3bjQaDboL6MrjDcSZ65324WlNs7fFX',
   keys: {
-    p256dh: "BGtQxEJPAGOtRYjOr9oLY_YIhRof31JIRok6PTn5i8Rbg1bwCztTP1uPUcBRclf10dTPdqFDUa3AydCRuNeolAg",
-    auth: "EiBfCjv1cFVXhPP0KlOsWg"
-  }
+    p256dh: 'BGtQxEJPAGOTRVOr9oLyL_YlhRof31JIROK6PTn5i8Rbg1bwCztTP1uPUcBRcIf10dTPdgFDU-a3AydCRuNeolAg',
+    auth: 'EiBfCJv1cFVXhPP0KIOsWg',
+  },
 }
 
 function isAuthorizedCron(request: Request): boolean {
@@ -37,17 +32,6 @@ function isAuthorizedCron(request: Request): boolean {
 export async function GET(request: Request) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ success: false, error: 'Non autorisé (CRON_SECRET)' }, { status: 401 })
-  }
-
-  if (TARGET_PUSH_SUBSCRIPTION.endpoint.includes('chess-trainer-replace-with-your-real-endpoint')) {
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Collez votre vrai objet PushSubscription dans TARGET_PUSH_SUBSCRIPTION (Réglages → copier l'abonnement), puis redéployez.",
-      },
-      { status: 422 },
-    )
   }
 
   try {
