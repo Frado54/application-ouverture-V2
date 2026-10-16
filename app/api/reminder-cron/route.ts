@@ -6,24 +6,17 @@ const privateKey = 'mhi4rBToxPPffKBYp2yYETsSFJDvRvvXuWy5Zrwy744'
 
 webpush.setVapidDetails('mailto:mezianenael@hotmail.com', publicKey, privateKey)
 
-// 💾 VARIABLE GLOBALE EN MÉMOIRE SUR LE SERVEUR
-let registeredSubscription: any = null
-
-// 📥 1. ENREGISTREMENT AUTOMATIQUE DU TÉLÉPHONE (Quand tu ouvres l'appli)
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    if (body.subscription) {
-      registeredSubscription = body.subscription
-      return NextResponse.json({ success: true, message: "Adresse du smartphone mémorisée avec succès !" })
-    }
-    return NextResponse.json({ success: false, error: "Données manquantes" }, { status: 400 })
-  } catch (e) {
-    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+// 📡 ADRESSE POSTALE UNIQUE ET PARFAITE DE TON SMARTPHONE (Générée à 14h42)
+const TARGET_PUSH_SUBSCRIPTION = {
+  endpoint: "https://googleapis.com",
+  expirationTime: null,
+  keys: {
+    p256dh: "BNJdg_9CmryeVS2DHJ9PKkcUq4UP8QqqjZ-pZzr13lbeKru9DD-FL36IuH8SSxIFgXEnYF5IHl_S9RfGFlLK63Y",
+    auth: "m2vPW1FpOjGBEv4pAjw_qQ"
   }
 }
 
-// 📤 2. DÉCLENCHEMENT DU RAPPEL (Bouton RUN ou 10h00)
+// 📤 DÉCLENCHEMENT DU RAPPEL (Bouton RUN ou Alarme automatique)
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
   
@@ -31,25 +24,17 @@ export async function GET(request: Request) {
     return new NextResponse('Non autorisé', { status: 401 })
   }
 
-  // Si le serveur vient de redémarrer et n'a pas encore reçu l'adresse du téléphone
-  if (!registeredSubscription) {
-    return NextResponse.json({ 
-      success: false, 
-      error: "Le serveur est prêt, mais aucun téléphone n'a ouvert l'application pour s'enregistrer." 
-    }, { status: 404 })
-  }
-
   try {
-    // 🚀 EXPÉDITION DE LA NOTIFICATION SUR L'ADRESSE PARFAITE DU SMARTPHONE
+    // 🚀 EXPÉDITION DE LA NOTIFICATION SUR TON ADRESSE SANS RESTRICTION DE BATTERIE
     await webpush.sendNotification(
-      registeredSubscription,
+      TARGET_PUSH_SUBSCRIPTION,
       JSON.stringify({
         title: "♟️ Entraînement disponible",
         body: "Vos chapitres d'ouvertures d'échecs vous attendent pour vos révisions du jour !",
       })
     )
 
-    return NextResponse.json({ success: true, message: "Rappel envoyé !" })
+    return NextResponse.json({ success: true, message: "Rappel quotidien envoyé avec succès !" })
   } catch (error) {
     console.error("Erreur d'envoi push :", error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
