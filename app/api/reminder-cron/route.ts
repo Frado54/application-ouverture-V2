@@ -1,42 +1,55 @@
 import { NextResponse } from 'next/server'
-import webpush, { type PushSubscription } from 'web-push'
-import { REMINDER_PAYLOAD, VAPID_MAILTO, VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY } from '@/lib/push-config'
+import webpush from 'web-push'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+const publicKey = 'BEt5CGBR1H0duh-EIMqdlV_5G8TyNFzC41HXNDyEb2X8iE33h0km9cvpcDB_k8Xe7pbCfrU0RKbMF_OlSjjarqY'
+const privateKey = 'mhi4rBToxPPffKBYp2yYETsSFJDvRvvXuWy5Zrwy744'
 
-webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+webpush.setVapidDetails('mailto:mezianenael@hotmail.com', publicKey, privateKey)
 
-const TARGET_PUSH_SUBSCRIPTION: PushSubscription = {
-  endpoint:
-    'https://fcm.googleapis.com/fcm/send/fu4plzSLpkg:APA91bEvUkMcL-c_NfDZINWa3L5KhRaowa1lYsyp2EDgejB5GQUZPZYOHgrBz-MnxB2j0Oby2eJ6lzA9j486MTwhYFZQzB-Sh1y1RTtpLniZf3bjQaDboL6MrjDcSZ65324WlNs7fFX',
-  keys: {
-    p256dh: 'BGtQxEJPAGOTRVOr9oLyL_YlhRof31JIROK6PTn5i8Rbg1bwCztTP1uPUcBRcIf10dTPdgFDU-a3AydCRuNeolAg',
-    auth: 'EiBfCJv1cFVXhPP0KIOsWg',
-  },
+// 💾 VARIABLE GLOBALE EN MÉMOIRE SUR LE SERVEUR
+let registeredSubscription: any = null
+
+// 📥 1. ENREGISTREMENT AUTOMATIQUE DU TÉLÉPHONE (Quand tu ouvres l'appli)
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    if (body.subscription) {
+      registeredSubscription = body.subscription
+      return NextResponse.json({ success: true, message: "Adresse du smartphone mémorisée avec succès !" })
+    }
+    return NextResponse.json({ success: false, error: "Données manquantes" }, { status: 400 })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
 }
 
-function isAuthorizedCron(request: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET?.trim()
+// 📤 2. DÉCLENCHEMENT DU RAPPEL (Bouton RUN ou 10h00)
+export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
-
-  if (process.env.NODE_ENV !== 'production') {
-    if (!cronSecret) return true
-    return authHeader === `Bearer ${cronSecret}`
+  
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse('Non autorisé', { status: 401 })
   }
 
-  if (!cronSecret) return false
-  return authHeader === `Bearer ${cronSecret}`
-}
-
-export async function GET(request: Request) {
-  if (!isAuthorizedCron(request)) {
-    return NextResponse.json({ success: false, error: 'Non autorisé (CRON_SECRET)' }, { status: 401 })
+  // Si le serveur vient de redémarrer et n'a pas encore reçu l'adresse du téléphone
+  if (!registeredSubscription) {
+    return NextResponse.json({ 
+      success: false, 
+      error: "Le serveur est prêt, mais aucun téléphone n'a ouvert l'application pour s'enregistrer." 
+    }, { status: 404 })
   }
 
   try {
-    await webpush.sendNotification(TARGET_PUSH_SUBSCRIPTION, JSON.stringify(REMINDER_PAYLOAD))
-    return NextResponse.json({ success: true, message: 'Rappel push envoyé.' })
+    // 🚀 EXPÉDITION DE LA NOTIFICATION SUR L'ADRESSE PARFAITE DU SMARTPHONE
+    await webpush.sendNotification(
+      registeredSubscription,
+      JSON.stringify({
+        title: "♟️ Entraînement disponible",
+        body: "Vos chapitres d'ouvertures d'échecs vous attendent pour vos révisions du jour !",
+      })
+    )
+
+    return NextResponse.json({ success: true, message: "Rappel envoyé !" })
   } catch (error) {
     console.error("Erreur d'envoi push :", error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
