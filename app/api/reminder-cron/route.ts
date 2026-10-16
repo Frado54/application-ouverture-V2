@@ -7,14 +7,7 @@ const privateKey = 'mhi4rBToxPPffKBYp2yYETsSFJDvRvvXuWy5Zrwy744'
 webpush.setVapidDetails('mailto:mezianenael@hotmail.com', publicKey, privateKey)
 
 // 📡 ADRESSE POSTALE UNIQUE ET PARFAITE DE TON SMARTPHONE (Générée à 14h42)
-const TARGET_PUSH_SUBSCRIPTION = {
-  endpoint: "https://googleapis.com",
-  expirationTime: null,
-  keys: {
-    p256dh: "BNJdg_9CmryeVS2DHJ9PKkcUq4UP8QqqjZ-pZzr13lbeKru9DD-FL36IuH8SSxIFgXEnYF5IHl_S9RfGFlLK63Y",
-    auth: "m2vPW1FpOjGBEv4pAjw_qQ"
-  }
-}
+const TARGET_PUSH_SUBSCRIPTION = {"endpoint":"https://fcm.googleapis.com/fcm/send/eKx7vf7waLg:APA91bGv9EKgQSyV_zofSOFDFj4Ct9VfS86k_TqDwcrISemzc8soQBz7ozoAbuMGyL3DnHo_pZOExGKtWpn6fxDGAPUCCf_9o90t7yVlE39TWahjy9KCGWqPk9H5FvUYKststrW64y_O","expirationTime":null,"keys":{"p256dh":"BNJdg_9CmryeVS2DHJ9PKkcUq4UP8QqqjZ-pZzr13lbeKru9DD-FL36IuH8SSxIFgXEnYF5IHl_S9RfGFlLK63Y","auth":"m2vPW1FpOjGBEv4pAjw_qQ"}}
 
 // 📤 DÉCLENCHEMENT DU RAPPEL (Bouton RUN ou Alarme automatique)
 export async function GET(request: Request) {
